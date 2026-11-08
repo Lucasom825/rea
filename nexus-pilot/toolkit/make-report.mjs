@@ -230,7 +230,8 @@ if (
   console.log("REA_TOOLKIT_EVIDENCE_ID=" + report.checks.rea_evidence_id);
   console.log("REA_TOOLKIT_REPORT_PRODUCED=true");
   console.log(
-    "REA_TOOLKIT_TECHNICAL_APPROVAL=" + String(report.hard_failures.length === 0),
+    "REA_TOOLKIT_TECHNICAL_APPROVAL=" +
+      String(report.hard_failures.length === 0),
   );
   // A completed job means the evidence report was produced, not that
   // a technical INCONCLUSIVO report was approved.
