@@ -1,0 +1,36 @@
+name: REA Toolkit official formatting proof
+on:
+  push:
+    branches:
+      - nexus/rea-toolkit-formatter-20261108
+permissions:
+  contents: read
+jobs:
+  format-two-files:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout source without persistent credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Set compatible Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+      - name: Format only the two touched files using pinned official version
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes oxfmt@0.72.0 nexus-pilot/toolkit/make-report.mjs nexus-pilot/toolkit/README.pt-BR.md
+          npx --yes oxfmt@0.72.0 --check nexus-pilot/toolkit/make-report.mjs nexus-pilot/toolkit/README.pt-BR.md
+          git diff --check
+      - name: Preserve formatted versions for audit (no branch writes)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: oxfmt-rea-toolkit-2files
+          path: |
+            nexus-pilot/toolkit/make-report.mjs
+            nexus-pilot/toolkit/README.pt-BR.md
+          retention-days: 2
+          if-no-files-found: error
