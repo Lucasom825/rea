@@ -1,8 +1,8 @@
 # REA Toolkit — análise pública JavaScript e revisão do motor
 
-O Toolkit original já está disponível em `main` como piloto REA/NEXUS.
-Esta revisão corrige o analisador original, mas permanece em branch de revisão
-e **ainda não está publicada em `main`**.
+Este repositório contém o REA Toolkit e a correção do analisador de importações.
+O botão utiliza a versão de código da branch selecionada: use `main` somente
+após o PR de atualização ser integrado e a execução nessa branch ser validada.
 Ela gera um relatório técnico em português, verificando o inventário de arquivos
 e as importações da REA contra um parser independente de JavaScript.
 **Não é um agente de IA autônomo**, nem substitui testes de execução.
@@ -62,11 +62,12 @@ apenas no preset `axios`, cujo código e commit específicos foram revisados par
 - Resultado validado: Axios 72/72 módulos, 199/199 importações do AST encontradas pela REA e 12 testes de funções puras; TodoMVC 7/7 módulos, 9/9 importações.
 - Ambas as análises mantiveram ressalvas sobre ocorrências adicionais da REA que não são dependências distintas comprovadas.
 
-## Estado da publicação e da nova opção Node-RED de uso
+## Histórico das validações e atualização Node-RED
 
-O botão do Toolkit original já existe em `main` e foi executado duas vezes com
-sucesso no preset Axios (runs 42526569587 e 42526593017). A opção `nodered`
-é proposta nesta branch de melhoria; **ainda não está publicada em main**.
+O botão do Toolkit original foi executado duas vezes com sucesso no preset
+Axios (runs 42526569587 e 42526593017). A opção `nodered` é incluída
+nesta revisão e fica disponível no seletor quando o código atualizado
+estiver efetivamente integrado à `main`.
 
 A prova isolada do Node-RED (commit público
 `c694a9b04ccfdeff2923bf8419082595f4e27071`) executou REA 6.8.0 em 47
@@ -87,7 +88,7 @@ humana. O código-fonte local da REA foi alterado e recompilado, mas **não foi 
 - [Node-RED — código REA recompilado, 145 testes aprovados, 177/177 importações reconciliadas, 0 extras](https://github.com/Lucasom825/rea/actions/runs/42530678687).
 - [Axios — REA recompilada, 199/199 importações reconciliadas, 12 testes controlados e 7 ocorrências adicionais com linhas alternativas ressalvadas](https://github.com/Lucasom825/rea/actions/runs/42530872243).
 - O workflow revisto faz o build da própria REA no GitHub Actions antes da análise. Isso pode aumentar o uso do GitHub Actions; disponibilidade, cotas e custo da conta não foram auditados.
-- Até a publicação desse PR em `main`, o botão de produção continua executando a REA antiga do npm, com os problemas demonstrados em Node-RED.
+- Para conferir qual motor está em uso, consulte a revisão GitHub do workflow executado. Antes da integração, a versão antiga de `main` ainda chama o pacote publicado no npm; esta revisão usa o motor compilado localmente.
 
 ## Próximos limites
 
