@@ -1,0 +1,205 @@
+name: REA patched engine - Axios verified regression
+
+# Safe, bounded, source-only for arbitrary public pinned GitHub repos.
+# Pre-reviewed Axios preset also executes three pure helper modules under tests.
+on:
+  push:
+    branches:
+      - nexus/rea-axios-regression-018-20261108
+env:
+  TURBO_TOKEN: "${{ (inputs.remote_cache_write == true || (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'))) && secrets.TURBO_TOKEN || '' }}"
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+  TURBO_CACHE: "${{ (inputs.remote_cache_write == true || (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'))) && 'local:rw,remote:rw' || 'local:rw' }}"
+
+permissions:
+  contents: read
+
+jobs:
+  verified-static-analysis:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      npm_config_audit: "false"
+      npm_config_fund: "false"
+      HUSKY: "0"
+      REA_BEHAVIOR_PASS: "false"
+    steps:
+      - name: Checkout REA Toolkit from the user's fork
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Pin compatible Node runtime
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+      - name: Install source REA development dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+      - name: Test the corrected JavaScript import-source classifier
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx vitest run src/domain/javascript/javascriptStaticAnalysisCalleeBoundary.test.ts src/domain/javascript/javascriptSemanticAnalysis.require_links.test.ts src/domain/javascript/javascriptStaticAnalysisModuleIndex.test.ts src/application/javascript/JavaScriptArtifactGraphStructure.test.ts
+      - name: Build patched REA locally; no package publishing
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build:cached
+          test -s dist/cli-runtime/cli.js
+      - name: Verify CLI and MCP indirect loader acceptance contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx vitest run tests/acceptance/applications/javascriptIndirectLoaderOwners.test.ts tests/acceptance/applications/javascriptSelfDefaultReceivers.test.ts tests/acceptance/applications/javascriptPossibleSetterOwners.test.ts tests/boundary/filesystem/javascript-applications/javascriptModuleRelationships.test.ts tests/acceptance/applications/javascriptCapturedGenericInvocation.test.ts tests/acceptance/applications/javascriptLiteralPercentPaths.test.ts tests/acceptance/applications/javascriptWrapperElectronCaptures.test.ts tests/boundary/filesystem/ciCachePolicy.test.ts
+      - name: Resolve safe public target and verify GitHub visibility
+        id: target
+        env:
+          REQ_PRESET: 'axios'
+          REQ_REPO: ''
+          REQ_COMMIT: ''
+          REQ_DIRECTORY: ''
+          REPO_READ_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import {resolveTarget} from './nexus-pilot/toolkit/resolve-target.mjs';
+          import {writeFileSync,appendFileSync} from 'node:fs';
+          import {join} from 'node:path';
+          const target=resolveTarget({
+            preset:process.env.REQ_PRESET,
+            repository:process.env.REQ_REPO,
+            commit:process.env.REQ_COMMIT,
+            scope:process.env.REQ_DIRECTORY,
+          });
+          const response=await fetch('https://api.github.com/repos/'+target.repository,{
+            headers:{'Accept':'application/vnd.github+json','User-Agent':'nexus-rea-readonly-toolkit',
+              'Authorization':'Bearer '+process.env.REPO_READ_TOKEN},
+            signal:AbortSignal.timeout(15000),
+          });
+          if(!response.ok)throw new Error('GitHub public repository metadata request failed: '+response.status);
+          const info=await response.json();
+          if(info.private!==false)throw new Error('PRIVATE_REPOSITORY_REFUSED');
+          if(info.size>target.limits.max_repository_size_kb)throw new Error('REPOSITORY_TOO_LARGE');
+          const licenses = new Set(['MIT','Apache-2.0','BSD-2-Clause','BSD-3-Clause','ISC','MPL-2.0','GPL-3.0','LGPL-3.0']);
+          if(target.preset==='public'&&!licenses.has(info.license?.spdx_id))throw new Error('PUBLIC_PROJECT_LICENSE_NOT_VERIFIED');
+          if(info.archived)console.log('Warning: source repository is archived');
+          const targetFile=join(process.env.RUNNER_TEMP,'rea-toolkit-target.json');
+          writeFileSync(targetFile,JSON.stringify(target,null,2));
+          const output=['repository='+target.repository,'sha='+target.commit,
+            'scope='+target.scope,'preset='+target.preset,'target_file='+targetFile].join('\n')+'\n';
+          appendFileSync(process.env.GITHUB_OUTPUT,output);
+          console.log('REA_PUBLIC_TARGET='+target.repository+'@'+target.commit+' / '+target.scope);
+          NODE
+      - name: Fetch verified public GitHub code at fixed commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          repository: ${{ steps.target.outputs.repository }}
+          ref: ${{ steps.target.outputs.sha }}
+          path: public-target
+          persist-credentials: false
+          submodules: false
+          lfs: false
+      - name: Verify exact commit, directory boundary and bounded JavaScript sources
+        id: scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import {realpathSync,statSync,readdirSync,appendFileSync} from 'node:fs';
+          import {resolve,relative,isAbsolute,sep,join} from 'node:path';
+          import {execFileSync} from 'node:child_process';
+          const checkout=realpathSync('public-target');
+          const expected='${{ steps.target.outputs.sha }}';
+          const actual=execFileSync('git',['-C',checkout,'rev-parse','HEAD'],{encoding:'utf8'}).trim();
+          if(actual!==expected)throw new Error('PINNED_COMMIT_MISMATCH');
+          const scope=realpathSync(resolve(checkout,'${{ steps.target.outputs.scope }}'));
+          const diff=relative(checkout,scope);
+          if(diff==='..'||diff.startsWith('..'+sep)||isAbsolute(diff))throw new Error('SOURCE_DIR_ESCAPES_REPOSITORY');
+          const files=[];
+          const walk=d=>{
+            for(const e of readdirSync(d,{withFileTypes:true})){
+              if(e.isDirectory())walk(join(d,e.name));
+              else if(e.isFile()&&e.name.endsWith('.js'))files.push(join(d,e.name));
+              if(files.length>300)throw new Error('TOO_MANY_JS_FILES');
+            }
+          };
+          walk(scope);
+          const total=files.reduce((sum,p)=>sum+statSync(p).size,0);
+          if(files.length===0||total>15000000)throw new Error('OUT_OF_BOUNDS_JS_FILES_OR_SIZE');
+          appendFileSync(process.env.GITHUB_OUTPUT,'scope_dir='+scope+'\n');
+          console.log('REA_SOURCE_SCOPE_VERIFIED files='+files.length+' bytes='+total);
+          NODE
+      - name: Install verified source-only parser outside the target checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/rea-toolkit" "$RUNNER_TEMP/rea-results"
+          cp nexus-pilot/module-graph.mjs "$RUNNER_TEMP/rea-toolkit/"
+          cp nexus-pilot/rea-import-audit.mjs "$RUNNER_TEMP/rea-toolkit/"
+          cp nexus-pilot/rea-import-audit.test.mjs "$RUNNER_TEMP/rea-toolkit/"
+          cp nexus-pilot/toolkit/*.mjs "$RUNNER_TEMP/rea-toolkit/"
+          cd "$RUNNER_TEMP/rea-toolkit"
+          npm init -y >/dev/null
+          npm install --ignore-scripts --no-audit --no-fund --save-exact typescript@5.9.3
+          node --test resolve-target.test.mjs make-report.test.mjs rea-import-audit.test.mjs
+      - name: Observe pre-reviewed Axios helper behavior (never custom source)
+        if: steps.target.outputs.preset == 'axios'
+        env:
+          REA_TOOLKIT_PRESET: axios
+          REA_TOOLKIT_CHECKOUT: ${{ github.workspace }}/public-target
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/rea-toolkit"
+          node --test axios-behavior.test.mjs
+          echo 'REA_BEHAVIOR_PASS=true' >> "$GITHUB_ENV"
+      - name: Construct independent static source module graph
+        env:
+          SOURCE_ROOT: ${{ steps.scope.outputs.scope_dir }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/rea-toolkit"
+          node --input-type=module <<'NODE'
+          import {scanModuleGraph} from './module-graph.mjs';
+          import {writeFileSync} from 'node:fs';
+          import {join} from 'node:path';
+          const graph=scanModuleGraph(process.env.SOURCE_ROOT,{maxFiles:300});
+          writeFileSync(join(process.env.RUNNER_TEMP,'rea-results','source_graph.json'),
+            JSON.stringify(graph,null,2)+'\n');
+          console.log('AST_SOURCE_FILES='+graph.modules);
+          console.log('AST_UNIQUE_INTERNAL_MODULE_EDGES='+graph.statistics?.unique_internal_pairs);
+          if(graph.status!=='STATIC_IMPORTS_VERIFIED')console.log('AST_STATUS='+graph.status);
+          NODE
+      - name: Analyze pinned public source with patched local REA source
+        env:
+          SOURCE_ROOT: ${{ steps.scope.outputs.scope_dir }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$GITHUB_WORKSPACE"
+          timeout 440s node scripts/rea.mjs analyze-javascript-application "$SOURCE_ROOT" --json > "$RUNNER_TEMP/rea-results/REA_Evidence.json"
+          test -s "$RUNNER_TEMP/rea-results/REA_Evidence.json"
+          test "$(wc -c < "$RUNNER_TEMP/rea-results/REA_Evidence.json")" -le 90000000
+          echo 'REA_ANALYSIS_COMMAND_FINISHED=true'
+      - name: Compare REA imports and produce inspectable Portuguese answer
+        env:
+          TARGET_FILE: ${{ steps.target.outputs.target_file }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/rea-toolkit"
+          node rea-import-audit.mjs "$RUNNER_TEMP/rea-results/source_graph.json" "$RUNNER_TEMP/rea-results/REA_Evidence.json" "$RUNNER_TEMP/rea-results/import_audit.json" || audit_exit=$?
+          if [ "${audit_exit:-0}" -gt 2 ]; then exit "$audit_exit"; fi
+          node make-report.mjs "$TARGET_FILE" "$RUNNER_TEMP/rea-results/source_graph.json" "$RUNNER_TEMP/rea-results/REA_Evidence.json" "$RUNNER_TEMP/rea-results/import_audit.json" "$RUNNER_TEMP/rea-results"
+      - name: Retain reproducible results and raw REA Evidence (public source only)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: rea-toolkit-public-analysis
+          path: ${{ runner.temp }}/rea-results/
+          if-no-files-found: warn
+          retention-days: 3
