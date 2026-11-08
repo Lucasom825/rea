@@ -18,15 +18,24 @@ test("TodoMVC preset is static only", () => {
   assert.equal(v.source_execution_allowed, false);
   assert.equal(v.commit.length, 40);
 });
+test("Node-RED preset is pinned, static-only and accepts scoped npm directory", () => {
+  const v = resolveTarget({ preset: "nodered", repository: "attacker/override", scope: "bad" });
+  assert.equal(v.repository, "node-red/node-red");
+  assert.equal(v.commit, "c694a9b04ccfdeff2923bf8419082595f4e27071");
+  assert.equal(v.scope, "packages/node_modules/@node-red/runtime/lib");
+  assert.equal(v.source_execution_allowed, false);
+});
+
 test("public arbitrary repository requires a full SHA and safe path", () => {
   const sha = "a".repeat(40);
   const v = resolveTarget({
     preset: "public",
     repository: "some-open/repo.js",
     commit: sha,
-    scope: "src/js",
+    scope: "packages/node_modules/@scope/runtime/lib",
   });
   assert.equal(v.repository, "some-open/repo.js");
+  assert.equal(v.scope, "packages/node_modules/@scope/runtime/lib");
   assert.equal(v.source_execution_allowed, false);
 });
 test("rejects ambiguous branch names as commit pins", () => {
