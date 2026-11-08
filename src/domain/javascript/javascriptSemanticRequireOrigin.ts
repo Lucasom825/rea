@@ -711,6 +711,22 @@ export const semanticRequireCallAt = (
   state: JavaScriptSemanticAnalysisState,
   factoryBindingIds: ReadonlySet<string>,
 ): JavaScriptRequireCallFact | undefined => {
+  const callee = unwrapJavaScriptExpression(node.callee).node;
+  // Stronger, lexical evidence wins over a possible alias through a bounded
+  // search. This is limited to an exact, unshadowed CommonJS require call;
+  // mutated and local require bindings still retain their original treatment.
+  if (
+    (t.isCallExpression(node) || t.isOptionalCallExpression(node)) &&
+    t.isIdentifier(callee, { name: "require" }) &&
+    requireLoaderValueAt(callee, node, state, factoryBindingIds) ===
+      "commonjs-loader"
+  )
+    return {
+      operation: "load",
+      loader: "commonjs-loader",
+      arguments: node.arguments,
+      sourceRelative: true,
+    };
   if (semanticModuleRequireCallAt(node, state))
     return {
       operation: "load",
@@ -718,7 +734,6 @@ export const semanticRequireCallAt = (
       arguments: undefined,
       sourceRelative: false,
     };
-  const callee = unwrapJavaScriptExpression(node.callee).node;
   if (
     (t.isMemberExpression(callee) || t.isOptionalMemberExpression(callee)) &&
     ["call", "apply"].includes(
