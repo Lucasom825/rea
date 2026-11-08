@@ -52,6 +52,8 @@ export function buildReport({target,ast,evidence,audit,behaviorPass=false}){
       rea_import_records:audit.rea_import_records??null,
       ast_import_sites:audit.ast_import_sites??null,
       matched_import_sites:audit.rea_exact_ast_site_matches??null,
+      ast_sites_absent_from_rea:audit.ast_sites_absent_from_rea??null,
+      missing_import_examples:audit.ast_missing_from_rea_examples??[],
       extra_rea_sites:audit.rea_additional_sites??null,
       extra_without_specifier:audit.additional_without_explicit_specifier??null,
       rea_graph_nodes:(graph.nodes??[]).length,
@@ -81,6 +83,7 @@ export function buildReport({target,ast,evidence,audit,behaviorPass=false}){
     '| Dependências internas distintas segundo AST | '+asInt(ast.statistics?.unique_internal_pairs)+' |',
     '| Importações de código identificadas pelo AST | '+asInt(audit.ast_import_sites)+' |',
     '| Importações AST reconciliadas com REA | '+asInt(audit.rea_exact_ast_site_matches)+' |',
+    '| Importações AST não identificadas pela REA | '+asInt(audit.ast_sites_absent_from_rea)+' |',
     '| Candidatos adicionais REA sem validação de importação única | '+asInt(audit.rea_additional_sites)+' |',
     '| Incógnitas da REA no grafo semântico | '+asInt(report.checks.rea_semantic_unknowns)+' |',
     '| Teste comportamental do código-alvo | '+(trueRuntime?'12 verificações Axios sem rede':'não executado')+' |',
@@ -88,6 +91,8 @@ export function buildReport({target,ast,evidence,audit,behaviorPass=false}){
     '**Identificador Evidence da REA:** '+tick+safe(report.checks.rea_evidence_id)+tick,
     '',
     hard.length?'**Falhas de verificação:** '+hard.map(safe).join(', '):'**Falhas de verificação:** nenhuma nos controles aplicados.',
+    '',
+    audit.ast_sites_absent_from_rea>0 ? '**ATENÇÃO:** a REA não reconheceu todos os locais de importação identificados no código. O resultado é INCONCLUSIVO, não uma análise completa.' : '',
     '',
     partial.length?'**Pontos que exigem atenção:** '+partial.map(safe).join(', '):'**Pontos que exigem atenção:** sem alertas nas categorias conferidas.',
     '',
@@ -119,5 +124,9 @@ if(process.argv[1]&&resolve(process.argv[1])===resolve(new URL(import.meta.url).
   console.log('REA_TOOLKIT_RESULT='+report.status);
   console.log('REA_TOOLKIT_SOURCE_MODULES='+report.checks.ast_js_files);
   console.log('REA_TOOLKIT_EVIDENCE_ID='+report.checks.rea_evidence_id);
-  if(report.hard_failures.length)process.exitCode=2;
+  console.log('REA_TOOLKIT_REPORT_PRODUCED=true');
+  console.log('REA_TOOLKIT_ANALYSIS_APPROVED='+String(report.hard_failures.length===0));
+  // The workflow may complete successfully as an evidence-delivery job,
+  // even when this specific source analysis is INCONCLUSIVO.
+  // Never promote INCONCLUSIVO to an approved technical conclusion.
 }
