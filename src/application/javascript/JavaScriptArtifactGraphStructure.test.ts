@@ -182,6 +182,61 @@ describe("skipped JavaScript parse reporting", () => {
   });
 });
 
+it("does not promote an unverified require candidate to an import edge", () => {
+  const source = [
+    "function invokeLocal(require) { require('./unknown.cjs'); }",
+    "require('./real.cjs');",
+  ].join("\n");
+  const file: JavaScriptArtifactFile = {
+    ...skippedFile(),
+    bytes: Buffer.byteLength(source),
+    text: { included: true, value: source },
+  };
+  const javascript = analyzeJavaScriptStaticSource(source);
+  expect(javascript.references).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ specifier: null, kind: "require" }),
+      expect.objectContaining({
+        specifier: "./real.cjs",
+        kind: "require",
+      }),
+    ]),
+  );
+  const context = contextFor(
+    file,
+    analysisFor([{ file, javascript, semantic: null }]),
+  );
+  addJavaScriptArtifactFiles(context);
+  const steps = addJavaScriptStaticFindingsSteps(context);
+  for (let step = steps.next(); !step.done; step = steps.next()) {
+    // Complete bounded graph work without invoking any target code.
+  }
+  const relationships = context.accumulator.edges();
+  const unverified = relationships.find(
+    ({ properties }) => properties.interpretation === "unproven-module-loader",
+  );
+  expect(unverified).toMatchObject({
+    relation: "calls",
+    properties: { specifier: null, kind: "require" },
+    evidence: {
+      authority: "static-relationship-inference",
+      confidence: "low",
+    },
+  });
+  expect(relationships).not.toContainEqual(
+    expect.objectContaining({
+      relation: "imports",
+      properties: expect.objectContaining({ specifier: null }),
+    }),
+  );
+  expect(relationships).toContainEqual(
+    expect.objectContaining({
+      relation: "imports",
+      properties: expect.objectContaining({ specifier: "./real.cjs" }),
+    }),
+  );
+});
+
 it("preserves omitted inventory facts on an unavailable artifact", () => {
   const file = skippedFile();
   const base = contextFor(file, analysisFor([]));
