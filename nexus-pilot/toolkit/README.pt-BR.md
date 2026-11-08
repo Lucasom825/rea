@@ -74,7 +74,6 @@ Ela **não se torna automaticamente um agente do NEXUS**. Integração permanent
 de modelo, chaves, dados privados ou produção requer uma etapa específica de
 segurança e autorização.
 
-
 ## Como ler uma análise inconclusiva
 
 Um relatório `INCONCLUSIVO` **é entregue normalmente** como artefato e no Summary,
