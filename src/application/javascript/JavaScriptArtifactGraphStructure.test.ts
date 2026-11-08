@@ -182,7 +182,7 @@ describe("skipped JavaScript parse reporting", () => {
   });
 });
 
-it("does not promote an unverified require candidate to an import edge", () => {
+it("keeps unverified require candidates as explicitly low-confidence import edges", () => {
   const source = [
     "function invokeLocal(require) { require('./unknown.cjs'); }",
     "require('./real.cjs');",
@@ -216,18 +216,19 @@ it("does not promote an unverified require candidate to an import edge", () => {
     ({ properties }) => properties.interpretation === "unproven-module-loader",
   );
   expect(unverified).toMatchObject({
-    relation: "calls",
+    relation: "imports",
     properties: { specifier: null, kind: "require" },
     evidence: {
       authority: "static-relationship-inference",
       confidence: "low",
     },
   });
-  expect(relationships).not.toContainEqual(
-    expect.objectContaining({
-      relation: "imports",
-      properties: expect.objectContaining({ specifier: null }),
-    }),
+  // This import edge is only a candidate: graph consumers must not count
+  // it as a confirmed dependency without a normalized specifier.
+  expect(unverified?.evidence.limitations).toEqual(
+    expect.arrayContaining([
+      expect.stringContaining("identity and module specifier are unverified"),
+    ]),
   );
   expect(relationships).toContainEqual(
     expect.objectContaining({
