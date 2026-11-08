@@ -31,6 +31,30 @@ export function buildReport({
   const parsed = stats.parsed_javascript_files ?? null,
     parseFailures = stats.parse_failures ?? null;
   const moduleTotal = ast.modules ?? 0;
+  const linked = new Set();
+  const directDependents = new Map();
+  for (const edge of ast.edges ?? []) {
+    if (
+      edge.kind !== "internal" ||
+      typeof edge.from !== "string" ||
+      typeof edge.target !== "string"
+    )
+      continue;
+    const key = edge.from + "\\0" + edge.target;
+    if (linked.has(key)) continue;
+    linked.add(key);
+    directDependents.set(
+      edge.target,
+      (directDependents.get(edge.target) ?? 0) + 1,
+    );
+  }
+  const structuralHubs = [...directDependents.entries()]
+    .map(([module, direct_dependents]) => ({ module, direct_dependents }))
+    .sort((a, b) =>
+      b.direct_dependents - a.direct_dependents ||
+      a.module.localeCompare(b.module),
+    )
+    .slice(0, 8);
   const hard = [
     !evidence.evidence_id ? "REA_EVIDENCE_ID_MISSING" : null,
     evidence.operation !== "analyze_javascript_application"
@@ -110,6 +134,7 @@ export function buildReport({
     },
     hard_failures: hard,
     remaining_uncertainties: partial,
+    structural_hubs: structuralHubs,
     interpretation:
       "Static JavaScript module map only. No automatic claim of end-to-end app behavior or business-rule correctness.",
   };
@@ -194,6 +219,24 @@ export function buildReport({
     "- A REA pode conter interpretações e classificações ainda incertas; não use o relatório como aprovação automática de engenharia.",
     "",
   ];
+  const archIndex = lines.indexOf("## O que é possível concluir");
+  if (archIndex < 0) throw new Error("Report section missing");
+  lines.splice(
+    archIndex,
+    0,
+    "## Mapa de dependências internas (AST)",
+    "",
+    "Os módulos abaixo são os mais importados diretamente por **outros módulos distintos** dentro do escopo. Isso não demonstra execução, confiabilidade ou importância funcional.",
+    "",
+    "| Arquivo | Outros módulos que o referenciam |",
+    "| --- | ---: |",
+    ...(structuralHubs.length
+      ? structuralHubs.map(
+          (hub) => "| " + tick + safe(hub.module) + tick + " | " + hub.direct_dependents + " |",
+        )
+      : ["| Sem relações internas estáticas comprovadas | 0 |"]),
+    "",
+  );
   return { report, markdown: lines.join("\n") };
 }
 if (
@@ -229,6 +272,10 @@ if (
   console.log("REA_TOOLKIT_SOURCE_MODULES=" + report.checks.ast_js_files);
   console.log("REA_TOOLKIT_EVIDENCE_ID=" + report.checks.rea_evidence_id);
   console.log("REA_TOOLKIT_REPORT_PRODUCED=true");
+  if (report.status === "INCONCLUSIVO")
+    console.log(
+      "::warning title=REA Toolkit inconclusivo::O relatorio foi entregue, mas a aprovacao tecnica e falsa. Consulte o Summary e o JSON.",
+    );
   console.log(
     "REA_TOOLKIT_TECHNICAL_APPROVAL=" +
       String(report.hard_failures.length === 0),
