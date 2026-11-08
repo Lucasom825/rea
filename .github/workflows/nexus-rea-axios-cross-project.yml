@@ -156,5 +156,6 @@ jobs:
           path: |
             ${{ runner.temp }}/nexus-rea-axios-comparison.json
             ${{ runner.temp }}/nexus-axios-source-graph.json
+            ${{ runner.temp }}/nexus-rea-axios-evidence.json
           retention-days: 3
           if-no-files-found: warn
