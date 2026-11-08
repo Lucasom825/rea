@@ -110,12 +110,29 @@ it.each([
   },
 );
 
-it("bounds branching selector work and reports unknown ownership explicitly", () => {
+it("does not promote exhausted alias selectors to module imports", () => {
   const analysis = analyzeJavaScriptStaticSource(aliasSelectionBudgetSource());
   expect(analysis.parse_error_count).toBe(0);
   expect(analysis.parse_status).toBe("partial");
+  // The selector budget leaves the call unresolved. A completely local object
+  // is not positive evidence of a Node module delegate.
+  expect(analysis.references).toEqual([]);
+  expect(analysis.limitations).toContainEqual(
+    expect.stringMatching(/Alias selection expansion.*512/u),
+  );
+});
+
+it("keeps real literal require sources after exhausting unrelated selector work", () => {
+  const source = aliasSelectionBudgetSource() +
+    "\nrequire('./actual-dependency.cjs');\n" +
+    "const node={status(){}}; node.status({text:'ready'});";
+  const analysis = analyzeJavaScriptStaticSource(source);
+  expect(analysis.parse_error_count).toBe(0);
   expect(analysis.references).toEqual([
-    expect.objectContaining({ kind: "require", specifier: null }),
+    expect.objectContaining({
+      kind: "require",
+      specifier: "./actual-dependency.cjs",
+    }),
   ]);
   expect(analysis.limitations).toContainEqual(
     expect.stringMatching(/Alias selection expansion.*512/u),
