@@ -7,7 +7,9 @@ on:
       - nexus/rea-pilot-001-20261108
     paths:
       - .github/workflows/nexus-rea-synthetic-pilot.yml
-      - nexus-pilot/**
+      - nexus-pilot/preflight.mjs
+      - nexus-pilot/fixture/**
+      - nexus-pilot/tests/**
   workflow_dispatch:
 
 permissions:
