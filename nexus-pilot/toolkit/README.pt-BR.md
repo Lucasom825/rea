@@ -1,6 +1,6 @@
 # REA Toolkit 007 — análise pública de JavaScript, com evidência
 
-Esta é a **primeira ferramenta pronta para ativação** da trilha REA/NEXUS.
+Esta ferramenta já está disponível em `main` como o primeiro piloto REA/NEXUS.
 Ela gera um relatório técnico em português, verificando o inventário de arquivos
 e as importações da REA contra um parser independente de JavaScript.
 **Não é um agente de IA autônomo**, nem substitui testes de execução.
@@ -13,7 +13,7 @@ e as importações da REA contra um parser independente de JavaScript.
 4. Compara os locais de importação por arquivo/linha/dependência, registra divergências e indica ressalvas.
 5. Gera um relatório em português diretamente no **GitHub Actions > Summary**, acompanhado de arquivos JSON auditáveis com retenção de 3 dias.
 
-## Como usar pelo iPhone ou computador (depois da ativação em `main`)
+## Como usar pelo iPhone ou computador
 
 1. Abra o GitHub na conta `Lucasom825`, repositório `rea`.
 2. Entre em **Actions** > **REA Toolkit - Analise de codigo publico**.
@@ -60,13 +60,25 @@ apenas no preset `axios`, cujo código e commit específicos foram revisados par
 - Resultado validado: Axios 72/72 módulos, 199/199 importações do AST encontradas pela REA e 12 testes de funções puras; TodoMVC 7/7 módulos, 9/9 importações.
 - Ambas as análises mantiveram ressalvas sobre ocorrências adicionais da REA que não são dependências distintas comprovadas.
 
-## O que falta para liberar o botão de uso
+## Estado da publicação e da nova opção Node-RED de uso
 
-No GitHub, aprovar o PR de ativação para `main` **após revisão**. Esta edição
-foi construída em uma branch independente para evitar misturar dezenas de commits
-experimentais com os arquivos necessários à ferramenta. Nenhuma produção é
-alterada pelo PR em si; a publicação só ocorre quando a revisão é aprovada e
-o PR é integrado à branch principal.
+O botão do Toolkit original já existe em `main` e foi executado duas vezes com
+sucesso no preset Axios (runs 42526569587 e 42526593017). A opção `nodered`
+é proposta nesta branch de melhoria; **ainda não está publicada em main**.
+
+A prova isolada do Node-RED (commit público
+`c694a9b04ccfdeff2923bf8419082595f4e27071`) executou REA 6.8.0 em 47
+arquivos JS. O parser de referência encontrou 177 importações; apenas 153 foram
+reconciliadas com a REA, com **24 locais ausentes**. O resultado técnico é
+**INCONCLUSIVO**, mesmo com a execução e entrega de relatório bem-sucedidas.
+Houve ainda 135 ocorrências extras da REA sem especificador literal verificável.
+Evidência: https://github.com/Lucasom825/rea/actions/runs/42527372456 .
+
+Para não confundir conclusão do job com qualidade do resultado, a nova versão
+adiciona anotação visível de alerta quando o relatório técnico for inconclusivo
+e um mapa de módulos internos mais referenciados, gerado a partir do AST, sem
+inferir comportamento. Publicação desta revisão depende de validação e revisão
+humana; não muda a REA 6.8.0 nem altera Memora ou NEXUS de produção.
 
 ## Próximos limites
 
