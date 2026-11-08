@@ -19,7 +19,11 @@ test("TodoMVC preset is static only", () => {
   assert.equal(v.commit.length, 40);
 });
 test("Node-RED preset is pinned, static-only and accepts scoped npm directory", () => {
-  const v = resolveTarget({ preset: "nodered", repository: "attacker/override", scope: "bad" });
+  const v = resolveTarget({
+    preset: "nodered",
+    repository: "attacker/override",
+    scope: "bad",
+  });
   assert.equal(v.repository, "node-red/node-red");
   assert.equal(v.commit, "c694a9b04ccfdeff2923bf8419082595f4e27071");
   assert.equal(v.scope, "packages/node_modules/@node-red/runtime/lib");
