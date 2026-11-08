@@ -21,6 +21,7 @@ e as importações da REA contra um parser independente de JavaScript.
 4. Escolha um tipo de análise:
    - `axios`: 72 módulos JavaScript, teste real de 12 comportamentos de funções puras, sem rede.
    - `todomvc`: sete módulos JavaScript, análise exclusivamente estática.
+   - `nodered`: 47 módulos JavaScript do motor de fluxos Node-RED, revisão pública fixa; análise estática, sem executar o código.
    - `public`: outro repositório GitHub **público**, fornecendo `dono/repositorio`, SHA completo de 40 caracteres e pasta dos arquivos JavaScript.
 5. Toque em **Run workflow**. Após o resultado, abra o resumo da execução e o artefato `rea-toolkit-public-analysis`.
 
@@ -37,7 +38,7 @@ https://github.com/Lucasom825/rea/actions/workflows/nexus-rea-toolkit.yml
 - Commit: `a81d62a22e4b291a05d5b087a89fcc9d16075e83`
 - Diretório: `lib`
 
-O modo `public` **não executa código do repositório**. O teste comportamental ocorre
+Os modos `nodered` e `public` **não executam código do repositório**. O teste comportamental ocorre
 apenas no preset `axios`, cujo código e commit específicos foram revisados para esse teste.
 
 ## Restrições de segurança e precisão
