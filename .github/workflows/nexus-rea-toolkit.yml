@@ -41,6 +41,10 @@ permissions:
 
 jobs:
   verified-static-analysis:
+    strategy:
+      fail-fast: false
+      matrix:
+        sample: [axios, todomvc]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
@@ -60,7 +64,7 @@ jobs:
       - name: Resolve safe public target and verify GitHub visibility
         id: target
         env:
-          REQ_PRESET: ${{ inputs.target || 'axios' }}
+          REQ_PRESET: ${{ matrix.sample }}
           REQ_REPO: ${{ inputs.repository || '' }}
           REQ_COMMIT: ${{ inputs.commit || '' }}
           REQ_DIRECTORY: ${{ inputs.directory || '' }}
@@ -200,7 +204,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: rea-toolkit-public-analysis
+          name: rea-toolkit-public-analysis-${{ matrix.sample }}
           path: ${{ runner.temp }}/rea-results/
           if-no-files-found: warn
           retention-days: 3
