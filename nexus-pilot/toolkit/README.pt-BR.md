@@ -71,8 +71,8 @@ A prova isolada do Node-RED (commit público
 arquivos JS. O parser de referência encontrou 177 importações; apenas 153 foram
 reconciliadas com a REA, com **24 locais ausentes**. O resultado técnico é
 **INCONCLUSIVO**, mesmo com a execução e entrega de relatório bem-sucedidas.
-Houve ainda 135 ocorrências extras da REA sem especificador literal verificável.
-Evidência: https://github.com/Lucasom825/rea/actions/runs/42527372456 .
+A auditoria forense do artefato original identificou que os 24 locais constam no Evidence da REA como expressões `require(...)` literais com `properties.specifier=null`, distribuídos em `flows/Subflow.js` (10), `storage/localfilesystem/projects/Project.js` (10) e `telemetry/index.js` (4). Portanto são registros incompletos, não ausência integral da observação. Os 135 registros extras sem especificador se dividem em **24 requires literais que coincidem com AST**, **107 chamadas de métodos comuns rotuladas como imports** e **4 requires dinâmicos**. A comparação estrita permanece 153/177 e o status técnico é **INCONCLUSIVO**, pois o motor não corrigiu o campo e apresenta classificações indevidas.
+Evidência: https://github.com/Lucasom825/rea/actions/runs/42527372456 . Auditoria detalhada em teste isolado: https://github.com/Lucasom825/rea/actions/runs/42528986976 .
 
 Para não confundir conclusão do job com qualidade do resultado, a nova versão
 adiciona anotação visível de alerta quando o relatório técnico for inconclusivo
