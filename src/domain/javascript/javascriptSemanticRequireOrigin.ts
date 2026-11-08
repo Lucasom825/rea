@@ -711,14 +711,35 @@ export const semanticRequireCallAt = (
   state: JavaScriptSemanticAnalysisState,
   factoryBindingIds: ReadonlySet<string>,
 ): JavaScriptRequireCallFact | undefined => {
-  if (semanticModuleRequireCallAt(node, state))
+  const callee = unwrapJavaScriptExpression(node.callee).node;
+  // Direct require(...) must be classified by its lexical CommonJS wrapper
+  // provenance. Under a depleted alias budget, the broader "possible
+  // module.require delegate" search can otherwise turn *all* direct require
+  // sites into unknown loaders, even when their literal is available.
+  // Keep the conservative unknown path for indirect/aliased loader calls.
+  const isDirectRequire =
+    t.isIdentifier(callee) && callee.name === "require";
+  const isMemberCall =
+    t.isMemberExpression(callee) || t.isOptionalMemberExpression(callee);
+  const memberName = isMemberCall
+    ? semanticStaticPropertyKey(callee.property, callee.computed)
+    : undefined;
+  const possibleIndirectLoader =
+    !isDirectRequire &&
+    (t.isIdentifier(callee) ||
+      (isMemberCall &&
+        (memberName === "require" ||
+          memberName === "resolve" ||
+          memberName === "call" ||
+          memberName === "apply" ||
+          memberName === "bind")));
+  if (semanticModuleRequireCallAt(node, state, possibleIndirectLoader))
     return {
       operation: "load",
       loader: "unknown",
       arguments: undefined,
       sourceRelative: false,
     };
-  const callee = unwrapJavaScriptExpression(node.callee).node;
   if (
     (t.isMemberExpression(callee) || t.isOptionalMemberExpression(callee)) &&
     ["call", "apply"].includes(
@@ -1091,7 +1112,7 @@ const hasCommonJsModuleSource = (
       contexts.set(value, byMode);
     }
     const path = selections.normalize(context, next.path);
-    if (selections.limited) return true;
+    if (selections.limited) return includeUnknown;
     const pathKey = JSON.stringify(path);
     let identity = context.identities.get(pathKey);
     if (identity === undefined) {
@@ -1102,7 +1123,7 @@ const hasCommonJsModuleSource = (
         ++additionalStates > SEMANTIC_ALIAS_SELECTION_LIMIT
       ) {
         state.valueResourceLimits.add("alias-selections");
-        return true;
+        return includeUnknown;
       }
       identity = {};
       context.identities.set(pathKey, identity);
