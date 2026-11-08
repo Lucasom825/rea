@@ -71,44 +71,30 @@ jobs:
         run: |
           set -euo pipefail
           node nexus-pilot/mcp-probe.mjs "$TARGET_DIR" "$RUNNER_TEMP/nexus-rea-mcp-report.json"
-      - name: Repeat MCP probe with only application and session tool families
-        shell: bash
-        env:
-          NEXUS_REA_SCOPE: application,session
-        run: |
-          set -euo pipefail
-          node nexus-pilot/mcp-probe.mjs "$TARGET_DIR" "$RUNNER_TEMP/nexus-rea-mcp-scoped-report.json"
-      - name: Compare full and scoped catalog without weakening evidence checks
+      - name: Verify two-tool client allowlist while preserving MCP discovery
         shell: bash
         run: |
           set -euo pipefail
           node --input-type=module <<'NODE'
           import { readFileSync } from 'node:fs';
           import { join } from 'node:path';
-          const base = process.env.RUNNER_TEMP;
-          const full = JSON.parse(readFileSync(join(base, 'nexus-rea-mcp-report.json'), 'utf8'));
-          const scoped = JSON.parse(readFileSync(join(base, 'nexus-rea-mcp-scoped-report.json'), 'utf8'));
-          for (const v of [full, scoped]) {
-            if (v.status !== 'SUCCESS_MCP_CLIENT_NO_LLM' || v.observed.module_retrieval_coverage !== '7/7') {
-              throw new Error('MCP client validation did not pass for both runs');
-            }
+          const r = JSON.parse(readFileSync(join(process.env.RUNNER_TEMP, 'nexus-rea-mcp-report.json'), 'utf8'));
+          if (r.status !== 'SUCCESS_MCP_CLIENT_NO_LLM') throw new Error('MCP protocol test did not pass');
+          if (r.observed.total_tools !== 229) throw new Error('Unexpected published-package catalog drift');
+          if (r.observed.client_selected_schema_count !== 2 || r.observed.nonallowlisted_tool_blocked !== true) {
+            throw new Error('Client allowlist did not enforce exactly two tools');
           }
-          if (scoped.observed.total_tools >= full.observed.total_tools) {
-            throw new Error('Scoped catalog did not reduce advertised tool count');
-          }
-          const percent = Math.round(1000 * (1 - scoped.observed.total_tools / full.observed.total_tools)) / 10;
-          console.log('REA_SCOPE_TOOLS_FULL=' + full.observed.total_tools);
-          console.log('REA_SCOPE_TOOLS_SCOPED=' + scoped.observed.total_tools);
-          console.log('REA_SCOPE_REDUCTION_PERCENT=' + percent);
-          console.log('REA_SCOPE_MODULE_COVERAGE=7/7_IN_BOTH');
+          if (r.observed.module_retrieval_coverage !== '7/7') throw new Error('REA source coverage regression');
+          console.log('REA_MCP_PUBLISHED_TOOLS=' + r.observed.total_tools);
+          console.log('REA_MCP_CLIENT_ALLOWLIST_TOOLS=' + r.observed.client_selected_schema_count);
+          console.log('REA_MCP_UNAUTHORIZED_CALL_BLOCKED=true');
+          console.log('REA_MCP_MODULE_COVERAGE=7/7');
           NODE
       - name: Retain auditable MCP probe report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: nexus-rea-mcp-protocol-report
-          path: |
-            ${{ runner.temp }}/nexus-rea-mcp-report.json
-            ${{ runner.temp }}/nexus-rea-mcp-scoped-report.json
+          path: ${{ runner.temp }}/nexus-rea-mcp-report.json
           retention-days: 3
           if-no-files-found: warn
