@@ -1,0 +1,28 @@
+name: REA engine patch isolated quality validation
+on:
+  push:
+    branches:
+      - nexus/rea-engine-quality-014-20261108
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .nvmrc
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+        env:
+          HUSKY: "0"
+      - name: Validate format of changed source
+        run: npx oxfmt --check nexus-pilot/rea-import-audit.mjs nexus-pilot/rea-import-audit.test.mjs nexus-pilot/toolkit/make-report.mjs nexus-pilot/toolkit/make-report.test.mjs nexus-pilot/toolkit/resolve-target.mjs nexus-pilot/toolkit/resolve-target.test.mjs src/application/javascript/JavaScriptArtifactGraphFindings.ts src/application/javascript/JavaScriptArtifactGraphStructure.test.ts src/domain/javascript/javascriptSemanticRequireOrigin.ts src/domain/javascript/javascriptStaticAnalysisCalleeBoundary.test.ts
+      - name: Validate TypeScript types
+        run: npm run typecheck
+      - name: Validate linter on changed source
+        run: npx oxlint nexus-pilot/rea-import-audit.mjs nexus-pilot/rea-import-audit.test.mjs nexus-pilot/toolkit/make-report.mjs nexus-pilot/toolkit/make-report.test.mjs nexus-pilot/toolkit/resolve-target.mjs nexus-pilot/toolkit/resolve-target.test.mjs src/application/javascript/JavaScriptArtifactGraphFindings.ts src/application/javascript/JavaScriptArtifactGraphStructure.test.ts src/domain/javascript/javascriptSemanticRequireOrigin.ts src/domain/javascript/javascriptStaticAnalysisCalleeBoundary.test.ts
