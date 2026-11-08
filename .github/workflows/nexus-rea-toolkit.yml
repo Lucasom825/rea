@@ -26,11 +26,21 @@ on:
         description: "Somente para public: pasta relativa dos arquivos JS"
         required: false
         type: string
+  push:
+    branches:
+      - nexus/rea-toolkit-qa008-20261108
+    paths:
+      - .github/workflows/nexus-rea-toolkit.yml
+
 permissions:
   contents: read
 
 jobs:
   verified-static-analysis:
+    strategy:
+      fail-fast: false
+      matrix:
+        sample: [axios, todomvc, public]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
@@ -50,10 +60,10 @@ jobs:
       - name: Resolve safe public target and verify GitHub visibility
         id: target
         env:
-          REQ_PRESET: ${{ inputs.target || 'axios' }}
-          REQ_REPO: ${{ inputs.repository || '' }}
-          REQ_COMMIT: ${{ inputs.commit || '' }}
-          REQ_DIRECTORY: ${{ inputs.directory || '' }}
+          REQ_PRESET: ${{ matrix.sample }}
+          REQ_REPO: ${{ matrix.sample == 'public' && 'expressjs/express' || '' }}
+          REQ_COMMIT: ${{ matrix.sample == 'public' && '43fca52d28a422c8be48fd489cbd4f2d6152bab6' || '' }}
+          REQ_DIRECTORY: ${{ matrix.sample == 'public' && 'lib' || '' }}
           REPO_READ_TOKEN: ${{ github.token }}
         shell: bash
         run: |
@@ -193,7 +203,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: rea-toolkit-public-analysis
+          name: rea-toolkit-qa008-${{ matrix.sample }}
           path: ${{ runner.temp }}/rea-results/
           if-no-files-found: warn
           retention-days: 3
