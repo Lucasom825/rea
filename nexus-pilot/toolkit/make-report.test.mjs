@@ -98,11 +98,16 @@ test("null-specifier literal require remains technically inconclusive and disclo
     ast_sites_with_literal_require_but_null_rea_specifier: 1,
     ast_sites_without_even_literal_rea_candidate: 0,
     rea_additional_sites_unreconciled_with_ast: 0,
+    rea_nonrequire_calls_tagged_as_imports: 3,
+    rea_dynamic_require_candidates_without_literal_specifier: 1,
   };
   const x = run({ audit: pending });
   assert.equal(x.report.status, "INCONCLUSIVO");
   assert.equal(x.report.checks.literal_require_without_structured_specifier, 1);
   assert.equal(x.report.checks.no_literal_rea_candidate, 0);
+  assert.equal(x.report.checks.method_calls_misclassified_as_imports, 3);
+  assert.equal(x.report.checks.dynamic_require_without_literal_specifier, 1);
+  assert.match(x.markdown, /Chamadas comuns de métodos/);
   assert.match(x.markdown, /sem specifier estruturado/);
   assert.ok(
     x.report.remaining_uncertainties.includes(
