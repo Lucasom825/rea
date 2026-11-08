@@ -1,0 +1,93 @@
+name: NEXUS REA local open-model agent proof
+
+# Experimental, bounded, public-only model and target; no API keys or paid services.
+on:
+  push:
+    branches:
+      - nexus/rea-pilot-001-20261108
+    paths:
+      - .github/workflows/nexus-rea-local-llm-agent.yml
+      - nexus-pilot/local-llm-agent.mjs
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  local-llm-via-rea-mcp:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      HUSKY: '0'
+      npm_config_fund: 'false'
+      npm_config_audit: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - name: Checkout isolated pilot only
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Use the REA required Node runtime
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+      - name: Validate local agent JavaScript syntax
+        run: node --check nexus-pilot/local-llm-agent.mjs
+      - name: Retrieve pin-verified MIT TodoMVC JavaScript sources (never run target code)
+        shell: bash
+        run: |
+          set -euo pipefail
+          REV="ff43b02e59dfa604386bb382034b2cd07c2bcd8a"
+          BASE="https://raw.githubusercontent.com/tastejs/todomvc/$REV"
+          TARGET="$RUNNER_TEMP/todomvc-es6"
+          mkdir -p "$TARGET/src"
+          cat > "$RUNNER_TEMP/todomvc-expected-blobs.tsv" <<'SOURCES'
+          8e61b62daab65a04b3e0f5e2ab0335ebe9e98259	examples/javascript-es6/src/app.js	src/app.js
+          76a2db5b6725065c825e60808e866fa46a7ef40d	examples/javascript-es6/src/controller.js	src/controller.js
+          c0cb47a64c29a0f96f5a60fedd1cf1266a980c39	examples/javascript-es6/src/helpers.js	src/helpers.js
+          b37df66af081282cb55e701021bd78536d2aa145	examples/javascript-es6/src/model.js	src/model.js
+          5a07bf255a074c64e9c10adf5db760c4e86077cd	examples/javascript-es6/src/store.js	src/store.js
+          cf4cbd4ff72ed29dd231c219ec89b184b5b20f90	examples/javascript-es6/src/template.js	src/template.js
+          f5ba496a0f4871f5dc1a943aebb1602aa16531e9	examples/javascript-es6/src/view.js	src/view.js
+          44b0adf8395573055fb4c10b1016073784272b74	examples/javascript-es6/src/index.html	src/index.html
+          dc4c6129fcfeb7ea2573400a174039907b704503	examples/javascript-es6/src/app.css	src/app.css
+          8b632fa7ee1ba75f69b652c5469c6dd4ec6ad8cd	examples/javascript-es6/package.json	package.json
+          9275d4371020294b6a107e454a0d1819f8b71c31	license.md	LICENSE.md
+          SOURCES
+          while IFS=$'\t' read -r expected source dest; do
+            test -n "$expected" || continue
+            curl --fail --location --silent --show-error --retry 3 --connect-timeout 12 --max-time 60 "$BASE/$source" -o "$TARGET/$dest"
+            actual="$(git hash-object "$TARGET/$dest")"
+            if [[ "$actual" != "$expected" ]]; then
+              echo "Source-integrity mismatch: $source" >&2
+              exit 41
+            fi
+          done < "$RUNNER_TEMP/todomvc-expected-blobs.tsv"
+          test "$(find "$TARGET/src" -maxdepth 1 -type f -name '*.js' | wc -l)" -eq 7
+          printf 'TARGET_DIR=%s\n' "$TARGET" >> "$GITHUB_ENV"
+          echo 'UPSTREAM_SOURCES=11_SHA_VERIFIED'
+          echo 'UPSTREAM_SOURCE_CODE_EXECUTED=false'
+      - name: Install isolated Transformers.js inference runner, no API credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/nexus-llm"
+          cp nexus-pilot/local-llm-agent.mjs "$RUNNER_TEMP/nexus-llm/agent.mjs"
+          cd "$RUNNER_TEMP/nexus-llm"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund --save-exact @huggingface/transformers@4.3.2
+          node --check agent.mjs
+          echo 'NEXUS_LOCAL_MODEL_LIBRARY_READY=true'
+      - name: Run Qwen CPU model against live REA MCP session and source snippets
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 780s node "$RUNNER_TEMP/nexus-llm/agent.mjs" "$TARGET_DIR" "$RUNNER_TEMP/nexus-rea-local-llm-result.json"
+      - name: Publish bounded reproducible result, even if test fails
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nexus-rea-local-llm-result
+          path: ${{ runner.temp }}/nexus-rea-local-llm-result.json
+          retention-days: 3
+          if-no-files-found: warn
