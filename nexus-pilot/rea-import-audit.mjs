@@ -8,13 +8,15 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 const site=(file,line,specifier)=>JSON.stringify([file,line??null,specifier??null]);
 export function auditReaImports(astGraph,reaEvidence){
+  const knownFiles=(astGraph.inventory??[]).map(x=>x.file).sort((a,b)=>b.length-a.length);
+  const canonicalFile=s=>knownFiles.find(f=>s===f||s.endsWith('/'+f))??s;
   const astSites=new Set(astGraph.edges.map(e=>site(e.from,e.line,e.specifier)));
   const astFileSpecs=new Set(astGraph.edges.map(e=>site(e.from,null,e.specifier)));
   const edges=(reaEvidence.normalized_result?.graph?.edges??[]).filter(e=>e.relation==='imports');
   const reaSites=new Map();
   for(const edge of edges){
     const location=edge.evidence?.location?.value??{};
-    const filename=(location.source??'').replace(/^lib\//,'');
+    const filename=canonicalFile(String(location.source??''));
     const line=location.start?.line??null;
     const specifier=edge.properties?.specifier??null;
     const key=site(filename,line,specifier);
