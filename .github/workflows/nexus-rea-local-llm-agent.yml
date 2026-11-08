@@ -8,6 +8,8 @@ on:
     paths:
       - .github/workflows/nexus-rea-local-llm-agent.yml
       - nexus-pilot/local-llm-agent.mjs
+      - nexus-pilot/verified-flow.mjs
+      - nexus-pilot/verified-flow.test.mjs
   workflow_dispatch:
 
 permissions:
@@ -73,16 +75,52 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/nexus-llm"
           cp nexus-pilot/local-llm-agent.mjs "$RUNNER_TEMP/nexus-llm/agent.mjs"
+          cp nexus-pilot/verified-flow.mjs "$RUNNER_TEMP/nexus-llm/verified-flow.mjs"
+          cp nexus-pilot/verified-flow.test.mjs "$RUNNER_TEMP/nexus-llm/verified-flow.test.mjs"
           cd "$RUNNER_TEMP/nexus-llm"
           npm init -y >/dev/null
-          npm install --no-audit --no-fund --save-exact @huggingface/transformers@4.3.2
+          npm install --no-audit --no-fund --save-exact @huggingface/transformers@4.3.2 typescript@5.9.3
           node --check agent.mjs
+          node --check verified-flow.mjs
+          REA_TEST_TARGET="$TARGET_DIR" node --test verified-flow.test.mjs
+          echo 'NEXUS_STATIC_VERIFIER_TESTS=PASS'
           echo 'NEXUS_LOCAL_MODEL_LIBRARY_READY=true'
       - name: Run Qwen CPU model against live REA MCP session and source snippets
         shell: bash
         run: |
           set -euo pipefail
           timeout 780s node "$RUNNER_TEMP/nexus-llm/agent.mjs" "$TARGET_DIR" "$RUNNER_TEMP/nexus-rea-local-llm-result.json"
+      - name: Enforce final grounded response, model quality separately
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { readFileSync, appendFileSync } from 'node:fs';
+          import { join } from 'node:path';
+          const file = join(process.env.RUNNER_TEMP,'nexus-rea-local-llm-result.json');
+          const r = JSON.parse(readFileSync(file,'utf8'));
+          const v = r.observations?.final_answer;
+          if (!r.status?.startsWith('PASS_VERIFIED_DELIVERY') ||
+              r.observations?.mcp_module_coverage !== '7/7' ||
+              r.observations?.static_verification_status !== 'VERIFIED_STATIC_CHAIN' ||
+              v?.status !== 'VERIFIED_FROM_SOURCE_NOT_LLM' ||
+              v?.sources?.length !== 4 ||
+              !v.text?.includes('Store.save')) {
+            throw new Error('Cannot deliver technical response: MCP or source verification incomplete');
+          }
+          console.log('NEXUS_FINAL_DELIVERY=VERIFIED_STATIC_SOURCE');
+          console.log('NEXUS_MODEL_QUALITY='+(r.observations.model_answer_pass?'PASS':'REJECTED_WITH_SOURCE_FALLBACK'));
+          console.log('NEXUS_FINAL_RESPONSE='+JSON.stringify(v.text));
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            '## REA + MCP + LLM source-verified response\n\n'+
+            '- REA MCP modules: **7/7**\n'+
+            '- Independent static source checker: **PASS**\n'+
+            '- LLM selected tool correctly: **'+String(r.observations.model_tool_selection_pass)+'**\n'+
+            '- LLM answer quality: **'+(r.observations.model_answer_pass?'PASS':'REJECTED; STATIC FALLBACK')+'**\n'+
+            '- Delivery: **'+v.origin+'**\n'+
+            '- Source lines: '+v.sources.join(', ')+'\n\n'+
+            'Model errors are preserved in the JSON artifact; fallback is NOT LLM success.\n');
+          NODE
       - name: Publish bounded reproducible result, even if test fails
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
