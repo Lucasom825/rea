@@ -1,0 +1,155 @@
+name: NEXUS REA multimodule open-source pilot
+
+# Static read-only test of pinned MIT TodoMVC sources; no app execution.
+on:
+  push:
+    branches:
+      - nexus/rea-pilot-001-20261108
+    paths:
+      - .github/workflows/nexus-rea-multimodule-pilot.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  todomvc-static-analysis:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      HUSKY: '0'
+      npm_config_fund: 'false'
+      npm_config_audit: 'false'
+    steps:
+      - name: Checkout controlled fork branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Use REA required Node version
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+      - name: Retrieve pin-verified MIT TodoMVC JavaScript sources (never run target code)
+        shell: bash
+        run: |
+          set -euo pipefail
+          REV="ff43b02e59dfa604386bb382034b2cd07c2bcd8a"
+          BASE="https://raw.githubusercontent.com/tastejs/todomvc/$REV"
+          TARGET="$RUNNER_TEMP/todomvc-es6"
+          mkdir -p "$TARGET/src"
+          cat > "$RUNNER_TEMP/todomvc-expected-blobs.tsv" <<'SOURCES'
+8e61b62daab65a04b3e0f5e2ab0335ebe9e98259	examples/javascript-es6/src/app.js	src/app.js
+76a2db5b6725065c825e60808e866fa46a7ef40d	examples/javascript-es6/src/controller.js	src/controller.js
+c0cb47a64c29a0f96f5a60fedd1cf1266a980c39	examples/javascript-es6/src/helpers.js	src/helpers.js
+b37df66af081282cb55e701021bd78536d2aa145	examples/javascript-es6/src/model.js	src/model.js
+5a07bf255a074c64e9c10adf5db760c4e86077cd	examples/javascript-es6/src/store.js	src/store.js
+cf4cbd4ff72ed29dd231c219ec89b184b5b20f90	examples/javascript-es6/src/template.js	src/template.js
+f5ba496a0f4871f5dc1a943aebb1602aa16531e9	examples/javascript-es6/src/view.js	src/view.js
+44b0adf8395573055fb4c10b1016073784272b74	examples/javascript-es6/src/index.html	src/index.html
+dc4c6129fcfeb7ea2573400a174039907b704503	examples/javascript-es6/src/app.css	src/app.css
+8b632fa7ee1ba75f69b652c5469c6dd4ec6ad8cd	examples/javascript-es6/package.json	package.json
+9275d4371020294b6a107e454a0d1819f8b71c31	license.md	LICENSE.md
+          SOURCES
+          while IFS=$'\t' read -r expected source dest; do
+            test -n "$expected" || continue
+            curl --fail --location --silent --show-error --retry 3 --connect-timeout 12 --max-time 60 "$BASE/$source" -o "$TARGET/$dest"
+            actual="$(git hash-object "$TARGET/$dest")"
+            if [[ "$actual" != "$expected" ]]; then
+              echo "Source-integrity mismatch: $source" >&2
+              exit 41
+            fi
+          done < "$RUNNER_TEMP/todomvc-expected-blobs.tsv"
+          test "$(find "$TARGET/src" -maxdepth 1 -type f -name '*.js' | wc -l)" -eq 7
+          printf 'TARGET_DIR=%s\n' "$TARGET" >> "$GITHUB_ENV"
+          echo 'UPSTREAM_SOURCES=11_SHA_VERIFIED'
+          echo 'UPSTREAM_SOURCE_CODE_EXECUTED=false'
+      - name: Execute published REA 6.8.0 static JavaScript analyzer
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          echo 'REA_OPEN_SOURCE_ANALYSIS=START'
+          timeout 420s npx --yes rea-agents@6.8.0 analyze-javascript-application "$TARGET_DIR" --json > "$RUNNER_TEMP/rea-todomvc-evidence.json"
+          test -s "$RUNNER_TEMP/rea-todomvc-evidence.json"
+          echo 'REA_OPEN_SOURCE_ANALYSIS=RETURNED'
+      - name: Validate real module coverage against known source inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync, appendFileSync } from 'node:fs';
+          import { join } from 'node:path';
+          const root = process.env.RUNNER_TEMP;
+          const evidence = JSON.parse(readFileSync(join(root, 'rea-todomvc-evidence.json'), 'utf8'));
+          if (evidence.operation !== 'analyze_javascript_application' || !evidence.evidence_id) {
+            throw new Error('Missing actual REA Evidence identity or expected operation');
+          }
+          const normalized = evidence.normalized_result || {};
+          const statistics = normalized.statistics || {};
+          const graph = normalized.graph || {};
+          const semantic = normalized.semantic_graph || {};
+          const seven = ['app.js','controller.js','helpers.js','model.js','store.js','template.js','view.js'];
+          const observedPaths = new Set();
+          for (const item of graph.nodes || []) {
+            for (const obs of item.observations || []) {
+              for (const s of [obs.label, obs.properties?.file_occurrence?.path, obs.properties?.path]) {
+                if (typeof s === 'string') observedPaths.add(s);
+              }
+            }
+          }
+          for (const item of semantic.nodes || []) {
+            if (typeof item.identity?.module_path === 'string') observedPaths.add(item.identity.module_path);
+          }
+          const seen = seven.filter(name => [...observedPaths].some(p => p === name || p.endsWith('/'+name)));
+          const functions = (semantic.nodes || []).filter(n => n.kind === 'function').map(n => n.label);
+          const classes = (semantic.nodes || []).filter(n => n.kind === 'class').map(n => n.label);
+          const graphEdges = graph.edges || [];
+          const imports = graphEdges.filter(e => /import|require|depends/i.test(e.relation || ''));
+          const expectedSymbols = ['Controller','Model','Store','Template','View'];
+          const seenSymbols = expectedSymbols.filter(s => [...functions,...classes].includes(s));
+          const report = {
+            pilot: 'NEXUS_REA_002',
+            upstream: 'tastejs/todomvc@ff43b02e59dfa604386bb382034b2cd07c2bcd8a',
+            target: 'examples/javascript-es6 (11 verified files, seven JavaScript modules)',
+            rea_version_requested: '6.8.0',
+            result: 'STATIC_EVIDENCE_ONLY',
+            evidence_id: evidence.evidence_id,
+            parsed_javascript_files: statistics.parsed_javascript_files ?? null,
+            parse_failures: statistics.parse_failures ?? null,
+            graph_nodes: (graph.nodes || []).length,
+            graph_edges: graphEdges.length,
+            import_like_edges: imports.length,
+            semantic_nodes: (semantic.nodes || []).length,
+            semantic_relations: (semantic.relations || []).length,
+            semantic_unknowns: (semantic.unknowns || []).length,
+            module_coverage: { observed: seen.length, expected: seven.length, modules: seen },
+            symbol_discovery: { observed: seenSymbols.length, expected: expectedSymbols.length, symbols: seenSymbols },
+            limitations: evidence.limitations || [],
+            runtime_behavior_verified: false,
+            mcp_agent_connection_verified: false
+          };
+          writeFileSync(join(root, 'rea-todomvc-summary.json'), JSON.stringify(report, null, 2) + '\n');
+          console.log('REA_TODOMVC_REPORT=' + JSON.stringify(report));
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            '## NEXUS REA 002 — TodoMVC static pilot\n' +
+            '\n- Evidence ID: `'+ report.evidence_id +'`\n' +
+            '- Parsed JavaScript: **'+report.parsed_javascript_files+'** (target: 7)\n' +
+            '- Module coverage: **'+seen.length+'/7**\n' +
+            '- Symbols of interest: **'+seenSymbols.length+'/5**\n' +
+            '- Parse errors: **'+report.parse_failures+'**\n' +
+            '- Semantic unknowns: **'+report.semantic_unknowns+'**\n' +
+            '- Live app and MCP agent: **not tested**\n');
+          if (statistics.parsed_javascript_files !== 7 || statistics.parse_failures !== 0 || seen.length !== 7) {
+            throw new Error('REA did not cover the seven real TodoMVC source files without parse errors');
+          }
+          console.log('REA_TODOMVC_MODULE_COVERAGE=PASS');
+          NODE
+      - name: Retain bounded open-source evidence and source-comparison report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nexus-rea-todomvc-evidence
+          path: |
+            ${{ runner.temp }}/rea-todomvc-evidence.json
+            ${{ runner.temp }}/rea-todomvc-summary.json
+          retention-days: 3
+          if-no-files-found: error
