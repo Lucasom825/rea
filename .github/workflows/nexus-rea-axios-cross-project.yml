@@ -9,6 +9,8 @@ on:
       - .github/workflows/nexus-rea-axios-cross-project.yml
       - nexus-pilot/module-graph.mjs
       - nexus-pilot/module-graph.test.mjs
+      - nexus-pilot/rea-import-audit.mjs
+      - nexus-pilot/rea-import-audit.test.mjs
   workflow_dispatch:
 
 permissions:
@@ -55,6 +57,8 @@ jobs:
           mkdir -p "$RUNNER_TEMP/nexus-graph"
           cp nexus-pilot/module-graph.mjs "$RUNNER_TEMP/nexus-graph/module-graph.mjs"
           cp nexus-pilot/module-graph.test.mjs "$RUNNER_TEMP/nexus-graph/module-graph.test.mjs"
+          cp nexus-pilot/rea-import-audit.mjs "$RUNNER_TEMP/nexus-graph/rea-import-audit.mjs"
+          cp nexus-pilot/rea-import-audit.test.mjs "$RUNNER_TEMP/nexus-graph/rea-import-audit.test.mjs"
           cd "$RUNNER_TEMP/nexus-graph"
           npm init -y >/dev/null
           npm install --no-audit --no-fund --save-exact typescript@5.9.3
@@ -64,7 +68,7 @@ jobs:
         run: |
           set -euo pipefail
           cd "$RUNNER_TEMP/nexus-graph"
-          REA_SECOND_TARGET="$REA_SECOND_TARGET" node --test module-graph.test.mjs
+          REA_SECOND_TARGET="$REA_SECOND_TARGET" node --test module-graph.test.mjs rea-import-audit.test.mjs
           node --input-type=module <<'NODE'
           import { scanModuleGraph } from './module-graph.mjs';
           import { writeFileSync } from 'node:fs';
@@ -148,6 +152,30 @@ jobs:
             throw new Error('REA failed complete parse of independent 72-file codebase');
           console.log('NEXUS_REA_CROSS_PROJECT_STATIC_PARSE=PASS');
           NODE
+      - name: Reconcile REA import sites against independent source AST
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/nexus-graph"
+          node rea-import-audit.mjs "$RUNNER_TEMP/nexus-axios-source-graph.json" "$RUNNER_TEMP/nexus-rea-axios-evidence.json" "$RUNNER_TEMP/nexus-rea-axios-import-audit.json"
+          node --input-type=module <<'NODE'
+          import {readFileSync,appendFileSync} from 'node:fs';
+          import {join} from 'node:path';
+          const r=JSON.parse(readFileSync(join(process.env.RUNNER_TEMP,'nexus-rea-axios-import-audit.json'),'utf8'));
+          if(r.ast_import_sites!==199 || r.rea_exact_ast_site_matches!==199 ||
+             r.additional_unmatched_explicit_specifier!==0){
+            throw new Error('Pinned Axios import-site baseline not matched');
+          }
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            '\n### Source-level import-site audit\n\n'+
+            '- AST import sites: **'+r.ast_import_sites+'**\n'+
+            '- Exactly matching REA sites: **'+r.rea_exact_ast_site_matches+'**\n'+
+            '- REA import records (including duplicates): **'+r.rea_import_records+'**\n'+
+            '- Extra REA site candidates: **'+r.rea_additional_sites+'**\n'+
+            '- Additional candidates without specifier: **'+r.additional_without_explicit_specifier+'**\n'+
+            '- Additional entries with known specifier and different line: **'+r.additional_same_module_specifier_other_line+'**\n'+
+            '- Semantics/runtime accuracy: **NOT VERIFIED**\n');
+          NODE
       - name: Preserve bounded Axios source and REA comparison report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -157,5 +185,6 @@ jobs:
             ${{ runner.temp }}/nexus-rea-axios-comparison.json
             ${{ runner.temp }}/nexus-axios-source-graph.json
             ${{ runner.temp }}/nexus-rea-axios-evidence.json
+            ${{ runner.temp }}/nexus-rea-axios-import-audit.json
           retention-days: 3
           if-no-files-found: warn
