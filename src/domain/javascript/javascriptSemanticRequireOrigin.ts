@@ -712,6 +712,22 @@ export const semanticRequireCallAt = (
   factoryBindingIds: ReadonlySet<string>,
 ): JavaScriptRequireCallFact | undefined => {
   const callee = unwrapJavaScriptExpression(node.callee).node;
+  if (
+    t.isIdentifier(callee, { name: "require" }) &&
+    node.loc?.start.line !== undefined &&
+    node.loc.start.line <= 35
+  ) {
+    const binding = resolveSemanticBindingState(state, callee, "require");
+    console.error("REA_TOP_LEVEL_REQUIRE_DIAG " + JSON.stringify({
+      line: node.loc.start.line,
+      loader: requireLoaderValueAt(callee, node, state, factoryBindingIds),
+      runtime: javaScriptRuntimeContext(state.program),
+      binding: binding?.hostOrigin ?? null,
+      kinds: binding === undefined ? null : [...binding.declarationKinds],
+      ambientWrites: (state.ambientBindingWrites.get("require") ?? []).length,
+      resolutionBlocked: semanticResolutionBlocked(state, callee, "require"),
+    }));
+  }
   // Stronger, lexical evidence wins over a possible alias through a bounded
   // search. This is limited to an exact, unshadowed CommonJS require call;
   // mutated and local require bindings still retain their original treatment.
