@@ -302,9 +302,10 @@ const addReference = (
   const target =
     resolved?.node ??
     unresolvedReferenceNode(context, input.file, input.value, input.coverage);
-  // An unknown loader identity is evidence of a call site, not a
-  // confirmed import. Keep the unresolved candidate and module-gap signal,
-  // but do not promote it into an "imports" relationship.
+  // Preserve the historical "imports" graph edge for a *possible* loader:
+  // consumers use it to locate uncertain, executable or indirect requires.
+  // It is NOT a confirmed dependency: mark it low-confidence explicitly.
+  // Only literal specifiers can be promoted by independent site auditing.
   const unprovenLoader =
     input.value.kind === "require" && input.value.specifier === null;
   addStaticInferenceEdge(context, {
@@ -313,11 +314,10 @@ const addReference = (
     file: input.file,
     range: input.value.location,
     coverage: input.coverage,
-    relation: unprovenLoader
-      ? "calls"
-      : input.value.operation === "load" &&
-          resolved?.path != null &&
-          isNativeAddonModuleTarget(resolved.path, resolved.file?.kind)
+    relation:
+      input.value.operation === "load" &&
+      resolved?.path != null &&
+      isNativeAddonModuleTarget(resolved.path, resolved.file?.kind)
         ? "loads"
         : "imports",
     ...(unprovenLoader
