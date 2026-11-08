@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: 'Qual codigo publico analisar?'
+        description: "Qual codigo publico analisar?"
         type: choice
         required: true
         default: axios
@@ -15,15 +15,15 @@ on:
           - todomvc
           - public
       repository:
-        description: 'Somente para public: dono/repositorio (GitHub publico)'
+        description: "Somente para public: dono/repositorio (GitHub publico)"
         required: false
         type: string
       commit:
-        description: 'Somente para public: SHA completo com 40 caracteres'
+        description: "Somente para public: SHA completo com 40 caracteres"
         required: false
         type: string
       directory:
-        description: 'Somente para public: pasta relativa dos arquivos JS'
+        description: "Somente para public: pasta relativa dos arquivos JS"
         required: false
         type: string
   push:
@@ -44,10 +44,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
-      npm_config_audit: 'false'
-      npm_config_fund: 'false'
-      HUSKY: '0'
-      REA_BEHAVIOR_PASS: 'false'
+      npm_config_audit: "false"
+      npm_config_fund: "false"
+      HUSKY: "0"
+      REA_BEHAVIOR_PASS: "false"
     steps:
       - name: Checkout REA Toolkit from the user's fork
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
