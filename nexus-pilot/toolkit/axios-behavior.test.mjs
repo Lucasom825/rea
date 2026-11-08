@@ -23,53 +23,53 @@ const [combine, isAbsolute, spread] = await Promise.all([
   load("isAbsoluteURL.js"),
   load("spread.js"),
 ]);
-test("combineURLs joins a base and relative path", () => {
+void test("combineURLs joins a base and relative path", () => {
   assert.equal(
     combine("https://example.test/api", "users"),
     "https://example.test/api/users",
   );
 });
-test("combineURLs normalizes repeated separator at boundary", () => {
+void test("combineURLs normalizes repeated separator at boundary", () => {
   assert.equal(
     combine("https://example.test/api///", "///users"),
     "https://example.test/api/users",
   );
 });
-test("combineURLs returns base when relative URL empty", () => {
+void test("combineURLs returns base when relative URL empty", () => {
   assert.equal(
     combine("https://example.test/api", ""),
     "https://example.test/api",
   );
 });
-test("combineURLs uses slash for empty base", () => {
+void test("combineURLs uses slash for empty base", () => {
   assert.equal(combine("", "items"), "/items");
 });
-test("absolute https URL is recognized", () => {
+void test("absolute https URL is recognized", () => {
   assert.equal(isAbsolute("https://example.test/path"), true);
 });
-test("protocol-relative URL is recognized", () => {
+void test("protocol-relative URL is recognized", () => {
   assert.equal(isAbsolute("//example.test/path"), true);
 });
-test("relative URL does not count as absolute", () => {
+void test("relative URL does not count as absolute", () => {
   assert.equal(isAbsolute("users/1"), false);
 });
-test("non-string URL does not count as absolute", () => {
+void test("non-string URL does not count as absolute", () => {
   assert.equal(isAbsolute(null), false);
 });
-test("spread passes every argument in the correct order", () => {
+void test("spread passes every argument in the correct order", () => {
   const sum = spread((a, b, c) => a * 100 + b * 10 + c);
   assert.equal(sum([2, 4, 7]), 247);
 });
-test("spread preserves callback return value", () => {
+void test("spread preserves callback return value", () => {
   const joinArgs = spread((a, b) => a + "|" + b);
   assert.equal(joinArgs(["x", "y"]), "x|y");
 });
-test("wrong expected behavior is rejected by assertions (negative control)", () => {
+void test("wrong expected behavior is rejected by assertions (negative control)", () => {
   assert.throws(() => assert.equal(combine("x", "y"), "x-y"), {
     name: "AssertionError",
   });
 });
-test("behavior test is explicitly not network or HTTP adapter testing", () => {
+void test("behavior test is explicitly not network or HTTP adapter testing", () => {
   assert.equal(typeof combine, "function");
   assert.equal(typeof isAbsolute, "function");
   assert.equal(typeof spread, "function");
