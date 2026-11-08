@@ -41,10 +41,6 @@ permissions:
 
 jobs:
   verified-static-analysis:
-    strategy:
-      fail-fast: false
-      matrix:
-        sample: [axios, todomvc, public]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
@@ -64,10 +60,10 @@ jobs:
       - name: Resolve safe public target and verify GitHub visibility
         id: target
         env:
-          REQ_PRESET: ${{ matrix.sample }}
-          REQ_REPO: ${{ matrix.sample == 'public' && 'expressjs/express' || inputs.repository || '' }}
-          REQ_COMMIT: ${{ matrix.sample == 'public' && '43fca52d28a422c8be48fd489cbd4f2d6152bab6' || inputs.commit || '' }}
-          REQ_DIRECTORY: ${{ matrix.sample == 'public' && 'lib' || inputs.directory || '' }}
+          REQ_PRESET: ${{ inputs.target || 'axios' }}
+          REQ_REPO: ${{ inputs.repository || '' }}
+          REQ_COMMIT: ${{ inputs.commit || '' }}
+          REQ_DIRECTORY: ${{ inputs.directory || '' }}
           REPO_READ_TOKEN: ${{ github.token }}
         shell: bash
         run: |
@@ -91,6 +87,8 @@ jobs:
           const info=await response.json();
           if(info.private!==false)throw new Error('PRIVATE_REPOSITORY_REFUSED');
           if(info.size>target.limits.max_repository_size_kb)throw new Error('REPOSITORY_TOO_LARGE');
+          const allowed=new Set(['MIT','Apache-2.0','BSD-2-Clause','BSD-3-Clause','ISC','MPL-2.0','GPL-3.0','LGPL-3.0']);
+          if(target.preset==='public'&&!allowed.has(info.license?.spdx_id))throw new Error('PUBLIC_PROJECT_LICENSE_NOT_VERIFIED');
           if(info.archived)console.log('Warning: source repository is archived');
           const targetFile=join(process.env.RUNNER_TEMP,'rea-toolkit-target.json');
           writeFileSync(targetFile,JSON.stringify(target,null,2));
@@ -189,6 +187,7 @@ jobs:
           cd "$RUNNER_TEMP"
           timeout 440s npx --yes rea-agents@6.8.0 analyze-javascript-application "$SOURCE_ROOT" --json > "$RUNNER_TEMP/rea-results/REA_Evidence.json"
           test -s "$RUNNER_TEMP/rea-results/REA_Evidence.json"
+          test "$(wc -c < "$RUNNER_TEMP/rea-results/REA_Evidence.json")" -le 90000000
           echo 'REA_ANALYSIS_COMMAND_FINISHED=true'
       - name: Compare REA imports and produce inspectable Portuguese answer
         env:
@@ -204,7 +203,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: rea-toolkit-qa-${{ matrix.sample }}
+          name: rea-toolkit-public-analysis
           path: ${{ runner.temp }}/rea-results/
           if-no-files-found: warn
           retention-days: 3
