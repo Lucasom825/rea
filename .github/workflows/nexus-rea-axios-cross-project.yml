@@ -1,0 +1,160 @@
+name: NEXUS REA independent Axios codebase pilot
+
+# Only MIT-licensed pinned public source, no target execution and no private data.
+on:
+  push:
+    branches:
+      - nexus/rea-pilot-006-axios-20261108
+    paths:
+      - .github/workflows/nexus-rea-axios-cross-project.yml
+      - nexus-pilot/module-graph.mjs
+      - nexus-pilot/module-graph.test.mjs
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  axios-independent-source-proof:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 17
+    env:
+      npm_config_fund: 'false'
+      npm_config_audit: 'false'
+      HUSKY: '0'
+    steps:
+      - name: Checkout user fork without stored credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Use Node pinned by REA
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+      - name: Checkout separate MIT Axios codebase at exact review commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          repository: axios/axios
+          ref: a81d62a22e4b291a05d5b087a89fcc9d16075e83
+          path: axios-snapshot
+          persist-credentials: false
+      - name: Check source provenance without executing Axios
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C axios-snapshot rev-parse HEAD)" = "a81d62a22e4b291a05d5b087a89fcc9d16075e83"
+          grep -iq 'MIT' axios-snapshot/LICENSE
+          test "$(find axios-snapshot/lib -type f -name '*.js' | wc -l)" -eq 72
+          printf 'REA_SECOND_TARGET=%s\n' "$GITHUB_WORKSPACE/axios-snapshot/lib" >> "$GITHUB_ENV"
+          echo 'PINNED_PUBLIC_SOURCE=axios_72_modules'
+          echo 'TARGET_CODE_EXECUTED=false'
+      - name: Prepare isolated TypeScript source parser
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/nexus-graph"
+          cp nexus-pilot/module-graph.mjs "$RUNNER_TEMP/nexus-graph/module-graph.mjs"
+          cp nexus-pilot/module-graph.test.mjs "$RUNNER_TEMP/nexus-graph/module-graph.test.mjs"
+          cd "$RUNNER_TEMP/nexus-graph"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund --save-exact typescript@5.9.3
+          node --check module-graph.mjs
+      - name: Run independent source graph checks and adversarial regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/nexus-graph"
+          REA_SECOND_TARGET="$REA_SECOND_TARGET" node --test module-graph.test.mjs
+          node --input-type=module <<'NODE'
+          import { scanModuleGraph } from './module-graph.mjs';
+          import { writeFileSync } from 'node:fs';
+          import { join } from 'node:path';
+          const g=scanModuleGraph(process.env.REA_SECOND_TARGET);
+          writeFileSync(join(process.env.RUNNER_TEMP,'nexus-axios-source-graph.json'),JSON.stringify(g,null,2)+'\n');
+          if(g.status!=='STATIC_IMPORTS_VERIFIED'||g.modules!==72)throw new Error('Source graph not verified');
+          console.log('AST_AXIOS_MODULES='+g.modules);
+          console.log('AST_AXIOS_UNIQUE_INTERNAL_EDGES='+g.statistics.unique_internal_pairs);
+          console.log('AST_AXIOS_UNKNOWN_DYNAMIC='+g.statistics.unknown_dynamic_imports);
+          NODE
+      - name: Execute REA 6.8.0 against a second independent public codebase
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          echo 'REA_AXIOS_STATIC_ANALYSIS=START'
+          timeout 480s npx --yes rea-agents@6.8.0 analyze-javascript-application "$REA_SECOND_TARGET" --json > "$RUNNER_TEMP/nexus-rea-axios-evidence.json"
+          test -s "$RUNNER_TEMP/nexus-rea-axios-evidence.json"
+          echo 'REA_AXIOS_STATIC_ANALYSIS=RETURNED'
+      - name: Compare independent import graph with REA observations
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { readFileSync,writeFileSync,appendFileSync } from 'node:fs';
+          import { join } from 'node:path';
+          import { createHash } from 'node:crypto';
+          const tmp=process.env.RUNNER_TEMP;
+          const raw=readFileSync(join(tmp,'nexus-rea-axios-evidence.json'),'utf8');
+          const e=JSON.parse(raw),r=e.normalized_result||{};
+          const g=JSON.parse(readFileSync(join(tmp,'nexus-axios-source-graph.json'),'utf8'));
+          const stats=r.statistics||{},graph=r.graph||{},semantic=r.semantic_graph||{};
+          const imported=(graph.edges||[]).filter(x=>/import|require|depend/i.test(x.relation||''));
+          const sourceNames=g.inventory.map(x=>x.file);
+          const known=(semantic.nodes||[]).map(n=>n.identity?.module_path).filter(x=>typeof x==='string');
+          const covered=sourceNames.filter(path=>known.some(v=>v===path||v.endsWith('/'+path)));
+          const report={
+            pilot:'NEXUS_REA_006',
+            source:'axios/axios',
+            source_commit:'a81d62a22e4b291a05d5b087a89fcc9d16075e83',
+            source_scope:'lib/ JavaScript files; no code execution',
+            license:'MIT',
+            rea_requested_version:'6.8.0',
+            evidence_id:e.evidence_id||null,
+            evidence_sha256:createHash('sha256').update(raw).digest('hex'),
+            evidence_bytes:Buffer.byteLength(raw),
+            ast_modules:g.modules,
+            ast_unique_internal_module_pairs:g.statistics.unique_internal_pairs,
+            ast_unresolved_module_imports:g.statistics.unresolved_edges,
+            ast_unknown_dynamic_imports:g.statistics.unknown_dynamic_imports,
+            rea_parsed_js:stats.parsed_javascript_files??null,
+            rea_parse_failures:stats.parse_failures??null,
+            rea_graph_nodes:(graph.nodes||[]).length,
+            rea_graph_edges:(graph.edges||[]).length,
+            rea_import_like_records:imported.length,
+            rea_semantic_nodes:(semantic.nodes||[]).length,
+            rea_semantic_unknowns:(semantic.unknowns||[]).length,
+            rea_semantic_module_identity_coverage:covered.length,
+            source_total:sourceNames.length,
+            limitations:[
+              'A static import edge proves source dependency, not a runtime call',
+              'REA import records are not necessarily unique module dependencies',
+              'The independent AST graph is the source comparison baseline, not REA ground truth',
+              'No private app, paid model, MCP-to-LLM, runtime requests, or production integration tested'
+            ]
+          };
+          writeFileSync(join(tmp,'nexus-rea-axios-comparison.json'),JSON.stringify(report,null,2)+'\n');
+          console.log('NEXUS_REA_AXIOS_REPORT='+JSON.stringify(report));
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            '## REA vs pinned public Axios\n\n'+
+            '- AST verified JS modules: '+g.modules+'\n'+
+            '- AST unique internal import pairs: '+g.statistics.unique_internal_pairs+'\n'+
+            '- REA parsed JS modules: '+String(report.rea_parsed_js)+'\n'+
+            '- REA parse failures: '+String(report.rea_parse_failures)+'\n'+
+            '- REA Evidence sha256: `'+report.evidence_sha256+'`\n'+
+            '- Scope: **static module analysis only; no runtime or LLM**\n');
+          if(e.operation!=='analyze_javascript_application'||!e.evidence_id)
+            throw new Error('Missing REA operation or Evidence identity');
+          if(stats.parsed_javascript_files!==72||stats.parse_failures!==0)
+            throw new Error('REA failed complete parse of independent 72-file codebase');
+          console.log('NEXUS_REA_CROSS_PROJECT_STATIC_PARSE=PASS');
+          NODE
+      - name: Preserve bounded Axios source and REA comparison report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nexus-rea-axios-comparison
+          path: |
+            ${{ runner.temp }}/nexus-rea-axios-comparison.json
+            ${{ runner.temp }}/nexus-axios-source-graph.json
+          retention-days: 3
+          if-no-files-found: warn
