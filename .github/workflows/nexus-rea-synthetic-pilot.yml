@@ -1,0 +1,72 @@
+name: NEXUS REA synthetic JavaScript pilot
+
+# Branch-scoped proof of execution; no deployments, secrets, or real target data.
+on:
+  push:
+    branches:
+      - nexus/rea-pilot-001-20261108
+    paths:
+      - .github/workflows/nexus-rea-synthetic-pilot.yml
+      - nexus-pilot/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-analysis:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      HUSKY: '0'
+      npm_config_fund: 'false'
+      npm_config_audit: 'false'
+    steps:
+      - name: Checkout isolated fork branch without retained credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Install upstream-pinned compatible Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+      - name: Check Node compatibility and synthetic target behavior
+        run: |
+          set -euo pipefail
+          node --version
+          npm --version
+          node nexus-pilot/preflight.mjs --strict --json
+          node --test nexus-pilot/tests/pilot.test.mjs
+      - name: Execute REA static analysis against synthetic fixture
+        run: |
+          set -euo pipefail
+          echo 'NEXUS_REA_STAGE=RUNNING_REAL_STATIC_ANALYSIS'
+          timeout 360s npx --yes rea-agents@6.8.0 analyze-javascript-application "$PWD/nexus-pilot/fixture" --json > "$RUNNER_TEMP/nexus-rea-evidence.json"
+          test -s "$RUNNER_TEMP/nexus-rea-evidence.json"
+          echo 'NEXUS_REA_STAGE=ANALYSIS_COMMAND_COMPLETED'
+      - name: Validate and summarize returned REA evidence
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          import { join } from 'node:path';
+          const path = join(process.env.RUNNER_TEMP, 'nexus-rea-evidence.json');
+          const raw = readFileSync(path, 'utf8');
+          const result = JSON.parse(raw);
+          const obj = result && typeof result === 'object' && !Array.isArray(result) ? result : {};
+          console.log('REA_EVIDENCE_PARSE=SUCCESS');
+          console.log('REA_EVIDENCE_BYTES=' + Buffer.byteLength(raw));
+          console.log('REA_EVIDENCE_TOP_LEVEL_KEYS=' + Object.keys(obj).slice(0, 24).join(','));
+          const nested = obj.result && typeof obj.result === 'object' ? obj.result : obj;
+          console.log('REA_EVIDENCE_ID=' + String(nested.evidence_id ?? obj.evidence_id ?? 'NOT_FOUND'));
+          console.log('REA_EVIDENCE_NORMALIZED_RESULT=' + (nested.normalized_result != null || obj.normalized_result != null));
+          console.log('REA_EVIDENCE_HAS_SYNTHETIC_FUNCTION=' + raw.includes('evaluateRequest'));
+          console.log('REA_EVIDENCE_HAS_SOURCE_PATH=' + raw.includes('sourcing.js'));
+          if (obj.ok === false || nested.ok === false) {
+            throw new Error('REA returned an explicit failed result');
+          }
+          if (!raw.includes('evaluateRequest') || !raw.includes('sourcing.js')) {
+            throw new Error('Cannot find synthetic target evidence in REA output; do not declare successful semantic analysis');
+          }
+          console.log('REA_SYNTHETIC_TARGET_EVIDENCE=PRESENT');
+          NODE
