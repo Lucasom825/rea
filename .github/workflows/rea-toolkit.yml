@@ -26,15 +26,6 @@ on:
         description: 'Somente para public: pasta relativa dos arquivos JS'
         required: false
         type: string
-  push:
-    branches:
-      - nexus/rea-toolkit-release-20261108
-    paths:
-      - .github/workflows/nexus-rea-toolkit.yml
-      - rea-toolkit/**
-      - rea-toolkit/module-graph.mjs
-      - rea-toolkit/rea-import-audit.mjs
-      - rea-toolkit/rea-import-audit.test.mjs
 
 permissions:
   contents: read
