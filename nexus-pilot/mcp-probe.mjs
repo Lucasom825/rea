@@ -92,7 +92,11 @@ child.on('exit', (code, signal) => {
   terminated = true;
   rejectAll(new Error('MCP exited early (' + (code === null ? signal : code) + ')'));
 });
+const allowedToolCalls = new Set(['analyze_javascript_application', 'inspect_analysis_view']);
 function call(method, params = {}, timeoutMs = 45000) {
+  if (method === 'tools/call' && !allowedToolCalls.has(params?.name)) {
+    return Promise.reject(new Error('CLIENT_ALLOWLIST_BLOCKED: ' + String(params?.name)));
+  }
   if (terminated || child.stdin.destroyed) return Promise.reject(new Error('MCP child not active'));
   const id = ++seq;
   return new Promise((accept, reject) => {
@@ -170,6 +174,15 @@ try {
       throw new Error('MCP did not advertise tool: ' + required);
     }
   }
+  const clientTools = selectedTools.filter(t => allowedToolCalls.has(t.name));
+  if (clientTools.length !== 2) throw new Error('Client tool allowlist did not select two known tools');
+  report.observed.client_selected_schema_count = clientTools.length;
+  report.observed.client_selected_tool_names = clientTools.map(t => t.name);
+  let denied = false;
+  try { await call('tools/call', { name: 'open_binary', arguments: {} }); }
+  catch (err) { denied = String(err?.message).startsWith('CLIENT_ALLOWLIST_BLOCKED'); }
+  if (!denied) throw new Error('Client failed to block a non-allowlisted tool');
+  report.observed.nonallowlisted_tool_blocked = true;
   mark('TOOL_DISCOVERY_SUCCESS');
 
   const prompts = await call('prompts/list', {}, 30000);
