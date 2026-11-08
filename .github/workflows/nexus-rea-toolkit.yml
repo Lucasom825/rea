@@ -13,6 +13,7 @@ on:
         options:
           - axios
           - todomvc
+          - nodered
           - public
       repository:
         description: "Somente para public: dono/repositorio (GitHub publico)"
