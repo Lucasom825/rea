@@ -41,7 +41,13 @@ jobs:
         run: |
           set -euo pipefail
           echo 'NEXUS_REA_STAGE=RUNNING_REAL_STATIC_ANALYSIS'
-          timeout 360s npx --yes rea-agents@6.8.0 analyze-javascript-application "$PWD/nexus-pilot/fixture" --json > "$RUNNER_TEMP/nexus-rea-evidence.json"
+          # The fork package itself is named rea-agents, but its dependencies
+          # are not installed. Resolve the published CLI in an isolated temp
+          # directory, not as the source checkout self-reference.
+          TARGET="$PWD/nexus-pilot/fixture"
+          cd "$RUNNER_TEMP"
+          echo "NEXUS_REA_CWD=ISOLATED_TEMP"
+          timeout 360s npx --yes rea-agents@6.8.0 analyze-javascript-application "$TARGET" --json > "$RUNNER_TEMP/nexus-rea-evidence.json"
           test -s "$RUNNER_TEMP/nexus-rea-evidence.json"
           echo 'NEXUS_REA_STAGE=ANALYSIS_COMMAND_COMPLETED'
       - name: Validate and summarize returned REA evidence
