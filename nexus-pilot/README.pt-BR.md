@@ -58,10 +58,27 @@ Se executado, armazenar os resultados Evidence em diretório privado fora do for
 ## Restrições
 
 Este fork é PÚBLICO: não enviar áudio, PDF de clientes, contratos, tokens,
-credenciais ou capturas privadas. Não modificar .github/workflows,
-configurações de produção, nem executar alvos desconhecidos.
+credenciais ou capturas privadas. Não modificar workflows existentes do projeto
+original, configurações de produção nem executar alvos desconhecidos.
+Workflows experimentais novos foram adicionados apenas à branch isolada do piloto.
 Não tratar teste de metadados como evidência de que a REA funciona.
 
 Fontes técnicas: README.md, SECURITY.md, DISCLAIMER.md, AGENTS.md,
 docs/getting-started/installation.md, docs/getting-started/cli.md.
 Original: https://github.com/morluto/rea
+
+
+## Atualização de execução — 08/11/2026
+
+As etapas seguintes **já foram executadas**, com evidências verificadas:
+
+- Piloto 001 (sintético): [GitHub Actions](https://github.com/Lucasom825/rea/actions/runs/42491577638).
+- Piloto 002 (TodoMVC multimódulo): [GitHub Actions](https://github.com/Lucasom825/rea/actions/runs/42504343905).
+- Piloto 003 (MCP stdio e Evidence): [GitHub Actions](https://github.com/Lucasom825/rea/actions/runs/42505202545).
+- Validação adicional (cliente com duas ferramentas autorizadas): [GitHub Actions](https://github.com/Lucasom825/rea/actions/runs/42505900001).
+
+Leia o relatório [RESULTADO_MCP_003.md](RESULTADO_MCP_003.md) para ver
+o que funcionou, por que o filtro `REA_MCP_TOOL_FAMILIES` **não funciona
+na versão publicada 6.8.0**, e o controle alternativo testado no cliente.
+Não há LLM/autonomia NEXUS conectada à REA, instalação permanente,
+merge na branch `main` ou execução em produção.
