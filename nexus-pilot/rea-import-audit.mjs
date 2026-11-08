@@ -70,6 +70,23 @@ export function auditReaImports(astGraph, reaEvidence) {
     return literal === null || !astSites.has(site(x.file, x.line, literal));
   });
   const ambiguous = extras.filter((x) => x.specifier === null);
+  // Evidence can misclassify arbitrary calls as "require" imports; separate
+  // non-require call text from truly dynamic/nonliteral require expressions.
+  const nonRequireCallsTaggedImports = unreconciledExtras.filter(
+    (x) =>
+      x.specifier === null &&
+      x.mode === "require" &&
+      typeof x.expression === "string" &&
+      !/^require\s*\(/u.test(x.expression),
+  );
+  const dynamicRequireCandidates = unreconciledExtras.filter(
+    (x) =>
+      x.specifier === null &&
+      x.mode === "require" &&
+      typeof x.expression === "string" &&
+      /^require\s*\(/u.test(x.expression) &&
+      literalRequire(x.expression) === null,
+  );
   const alternateLine = extras.filter(
     (x) =>
       x.specifier !== null && astFileSpecs.has(site(x.file, null, x.specifier)),
@@ -108,6 +125,16 @@ export function auditReaImports(astGraph, reaEvidence) {
     }),
     rea_additional_sites: extras.length,
     rea_additional_sites_unreconciled_with_ast: unreconciledExtras.length,
+    rea_nonrequire_calls_tagged_as_imports:
+      nonRequireCallsTaggedImports.length,
+    rea_dynamic_require_candidates_without_literal_specifier:
+      dynamicRequireCandidates.length,
+    nonrequire_call_examples: nonRequireCallsTaggedImports
+      .slice(0, 15)
+      .map(({ file, line, expression }) => ({ file, line, expression })),
+    dynamic_require_examples: dynamicRequireCandidates
+      .slice(0, 15)
+      .map(({ file, line, expression }) => ({ file, line, expression })),
     additional_without_explicit_specifier: ambiguous.length,
     additional_same_module_specifier_other_line: alternateLine.length,
     additional_unmatched_explicit_specifier: unknownSpecifier.length,
