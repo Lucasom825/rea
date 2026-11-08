@@ -28,6 +28,8 @@ const report = {
   observed: {},
   status: 'INCOMPLETE',
 };
+const scope = process.env.NEXUS_REA_SCOPE?.trim() || '';
+report.requested_tool_families = scope || 'full';
 const started = performance.now();
 let seq = 0;
 let bytesReceived = 0;
@@ -37,7 +39,7 @@ let terminated = false;
 const pending = new Map();
 const child = spawn('npx', ['--yes', 'rea-agents@6.8.0', 'mcp'], {
   cwd: process.env.RUNNER_TEMP || '/tmp',
-  env: { ...process.env, REA_MCP_TOOL_CATALOG_PROFILE: 'full' },
+  env: { ...process.env, REA_MCP_TOOL_CATALOG_PROFILE: 'full', ...(scope ? { REA_MCP_TOOL_FAMILIES: scope } : {}) },
   stdio: ['pipe', 'pipe', 'pipe'],
   shell: false,
 });
