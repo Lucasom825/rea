@@ -132,6 +132,10 @@ export function buildReport({
         audit.ast_sites_without_even_literal_rea_candidate ?? null,
       additional_rea_unreconciled:
         audit.rea_additional_sites_unreconciled_with_ast ?? null,
+      method_calls_misclassified_as_imports:
+        audit.rea_nonrequire_calls_tagged_as_imports ?? null,
+      dynamic_require_without_literal_specifier:
+        audit.rea_dynamic_require_candidates_without_literal_specifier ?? null,
       extra_rea_sites: audit.rea_additional_sites ?? null,
       extra_without_specifier:
         audit.additional_without_explicit_specifier ?? null,
@@ -196,6 +200,12 @@ export function buildReport({
     "| Candidatos adicionais REA não reconciliados com o AST | " +
       asInt(audit.rea_additional_sites_unreconciled_with_ast) +
       " |",
+    "| Chamadas comuns de métodos/funções rotuladas como importações pela REA | " +
+      asInt(audit.rea_nonrequire_calls_tagged_as_imports) +
+      " |",
+    "| Candidatos require() com argumento dinâmico | " +
+      asInt(audit.rea_dynamic_require_candidates_without_literal_specifier) +
+      " |",
     "| Incógnitas da REA no grafo semântico | " +
       asInt(report.checks.rea_semantic_unknowns) +
       " |",
@@ -221,6 +231,7 @@ export function buildReport({
     "- Os números refletem os arquivos e as importações identificados em leitura estática, sem interpretações inventadas por modelo de IA.",
     "- A comparação por localização confronta a REA com um parser independente. Importações repetidas não são contadas como dependências distintas.",
     "- Quando a REA mostra uma expressão require() literal mas deixa o campo specifier vazio, registramos a observação separadamente, sem contá-la como correspondência estrita.",
+    "- Chamadas sem sintaxe require() indevidamente rotuladas como importações são separadas de requerimentos dinâmicos. Isto indica possível defeito no extrator da REA, não confirmação de execução.",
     "- " +
       (trueRuntime
         ? "No preset Axios, 12 verificações de três funções puras observaram resultados reais, sem requisições HTTP."
