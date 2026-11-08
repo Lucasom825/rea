@@ -166,11 +166,11 @@ try {
   const choiceResult=await generator(choicePrompt,{max_new_tokens:32,do_sample:false,return_full_text:false});
   const rawChoice=outputText(choiceResult);
   report.observations.model_raw_tool_choice=rawChoice.slice(0,350);
-  const answer=rawChoice.trim();
-  const exact=allowed.has(answer)?answer:null;
-  const option=/^\(?([AB])\)?[.]?$/i.exec(answer);
+  const choiceText=rawChoice.trim();
+  const exact=allowed.has(choiceText)?choiceText:null;
+  const option=/^\(?([AB])\)?[.]?$/i.exec(choiceText);
   const mapped=option?(option[1].toUpperCase()==='A'?'analyze_javascript_application':'inspect_analysis_view'):null;
-  const singleName=[...allowed].filter(name=>new RegExp('\\b'+name+'\\b').test(answer));
+  const singleName=[...allowed].filter(name=>new RegExp('\\b'+name+'\\b').test(choiceText));
   const chosen=exact||mapped||(singleName.length===1?singleName[0]:null);
   report.observations.model_exact_tool_format=Boolean(exact);
   report.observations.model_choice_resolution=exact?'EXACT_TOOL_NAME':mapped?'LABELED_OPTION':chosen?'NAMED_IN_TEXT':'UNRESOLVED';
