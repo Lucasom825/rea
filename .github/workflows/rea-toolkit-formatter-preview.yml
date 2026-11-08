@@ -1,0 +1,36 @@
+name: Temporary read-only formatter preview
+on:
+  push:
+    branches:
+      - nexus/rea-toolkit-formatter-007-20261108
+    paths:
+      - .github/workflows/rea-toolkit-formatter-preview.yml
+permissions:
+  contents: read
+jobs:
+  preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+      - name: Install exact repository formatting dependencies
+        run: npm ci
+      - name: Format only the nine proposed release files (no GitHub writes)
+        run: |
+          set -euo pipefail
+          ./node_modules/.bin/oxfmt ".github/workflows/nexus-rea-toolkit.yml" "nexus-pilot/module-graph.mjs" "nexus-pilot/rea-import-audit.mjs" "nexus-pilot/rea-import-audit.test.mjs" "nexus-pilot/toolkit/axios-behavior.test.mjs" "nexus-pilot/toolkit/make-report.mjs" "nexus-pilot/toolkit/make-report.test.mjs" "nexus-pilot/toolkit/resolve-target.mjs" "nexus-pilot/toolkit/resolve-target.test.mjs"
+          ./node_modules/.bin/oxfmt --check ".github/workflows/nexus-rea-toolkit.yml" "nexus-pilot/module-graph.mjs" "nexus-pilot/rea-import-audit.mjs" "nexus-pilot/rea-import-audit.test.mjs" "nexus-pilot/toolkit/axios-behavior.test.mjs" "nexus-pilot/toolkit/make-report.mjs" "nexus-pilot/toolkit/make-report.test.mjs" "nexus-pilot/toolkit/resolve-target.mjs" "nexus-pilot/toolkit/resolve-target.test.mjs"
+      - name: Print formatted source as machine-readable, one-line previews
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';
+          const paths = [".github/workflows/nexus-rea-toolkit.yml","nexus-pilot/module-graph.mjs","nexus-pilot/rea-import-audit.mjs","nexus-pilot/rea-import-audit.test.mjs","nexus-pilot/toolkit/axios-behavior.test.mjs","nexus-pilot/toolkit/make-report.mjs","nexus-pilot/toolkit/make-report.test.mjs","nexus-pilot/toolkit/resolve-target.mjs","nexus-pilot/toolkit/resolve-target.test.mjs"];
+          for(const path of paths){
+            console.log('NEXUS_FORMAT_FILE_JSON::'+JSON.stringify({path,content:readFileSync(path,'utf8')}));
+          }
+          NODE
