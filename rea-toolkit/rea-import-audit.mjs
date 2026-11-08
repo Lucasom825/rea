@@ -39,6 +39,7 @@ export function auditReaImports(astGraph,reaEvidence){
     rea_unique_import_sites:reaSites.size,
     rea_exact_ast_site_matches:astSites.size-astUncovered.length,
     ast_sites_absent_from_rea:astUncovered.length,
+    ast_missing_from_rea_examples:astUncovered.slice(0,12).map(s=>{const [file,line,specifier]=JSON.parse(s);return{file,line,specifier};}),
     rea_additional_sites:extras.length,
     additional_without_explicit_specifier:ambiguous.length,
     additional_same_module_specifier_other_line:alternateLine.length,
