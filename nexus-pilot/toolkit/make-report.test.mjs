@@ -46,6 +46,23 @@ test("independent full structural source report can be approved", () => {
   assert.equal(x.report.checks.real_mcp_llm_agent_connected, false);
   assert.match(x.markdown, /relatório verificável/);
 });
+test("AST dependency hubs count distinct importing modules without inventing behavior", () => {
+  const graph = {
+    ...ast,
+    edges: [
+      { kind: "internal", from: "a.js", target: "b.js" },
+      { kind: "internal", from: "a.js", target: "b.js" },
+      { kind: "internal", from: "c.js", target: "b.js" },
+      { kind: "external", from: "a.js", specifier: "node:fs" },
+    ],
+  };
+  const x = run({ ast: graph });
+  assert.deepEqual(x.report.structural_hubs, [
+    { module: "b.js", direct_dependents: 2 },
+  ]);
+  assert.match(x.markdown, /Mapa de dependências internas/);
+});
+
 test("wrong REA parse count is inconclusive", () => {
   const p = {
     ...evidence,
