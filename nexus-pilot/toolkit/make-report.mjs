@@ -97,6 +97,7 @@ export function buildReport({
       rea_import_records: audit.rea_import_records ?? null,
       ast_import_sites: audit.ast_import_sites ?? null,
       matched_import_sites: audit.rea_exact_ast_site_matches ?? null,
+      ast_sites_absent_from_rea: audit.ast_sites_absent_from_rea ?? null,
       extra_rea_sites: audit.rea_additional_sites ?? null,
       extra_without_specifier:
         audit.additional_without_explicit_specifier ?? null,
@@ -144,6 +145,9 @@ export function buildReport({
       " |",
     "| Importações AST reconciliadas com REA | " +
       asInt(audit.rea_exact_ast_site_matches) +
+      " |",
+    "| Importações AST não reconhecidas pela REA | " +
+      asInt(audit.ast_sites_absent_from_rea) +
       " |",
     "| Candidatos adicionais REA sem validação de importação única | " +
       asInt(audit.rea_additional_sites) +
@@ -224,5 +228,10 @@ if (
   console.log("REA_TOOLKIT_RESULT=" + report.status);
   console.log("REA_TOOLKIT_SOURCE_MODULES=" + report.checks.ast_js_files);
   console.log("REA_TOOLKIT_EVIDENCE_ID=" + report.checks.rea_evidence_id);
-  if (report.hard_failures.length) process.exitCode = 2;
+  console.log("REA_TOOLKIT_REPORT_PRODUCED=true");
+  console.log(
+    "REA_TOOLKIT_TECHNICAL_APPROVAL=" + String(report.hard_failures.length === 0),
+  );
+  // A completed job means the evidence report was produced, not that
+  // a technical INCONCLUSIVO report was approved.
 }

@@ -73,3 +73,24 @@ A REA fica disponível como **analista estático de código público**.
 Ela **não se torna automaticamente um agente do NEXUS**. Integração permanente
 de modelo, chaves, dados privados ou produção requer uma etapa específica de
 segurança e autorização.
+
+
+## Como ler uma análise inconclusiva
+
+Um relatório `INCONCLUSIVO` **é entregue normalmente** como artefato e no Summary,
+mas **não está tecnicamente aprovado**. Isso ocorre, por exemplo, quando um import
+identificado pelo parser de referência não é encontrado nas evidências da REA.
+Em código Express (CommonJS), a comparação registrou 11 locais ausentes na REA:
+https://github.com/Lucasom825/rea/actions/runs/42519609185.
+Importações dinâmicas permanecem ressalvadas. O resultado nunca deve ser
+apresentado como precisão universal da ferramenta.
+
+Repositórios escolhidos pelo modo `public` devem exibir licença aberta
+reconhecida pelo GitHub. A análise é restrita a código público em JavaScript
+e não pode executar o código do alvo.
+
+Em uma execução do GitHub Actions, a cor verde significa que o relatório foi
+entregue; o **status técnico dentro do documento** é o critério de validade.
+
+**A liberação em `main` depende da revisão humana exigida pelo PR**, incluindo
+o aceite dos testes e dos limites das funções puras executadas no preset Axios.

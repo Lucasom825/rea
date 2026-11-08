@@ -26,16 +26,6 @@ on:
         description: "Somente para public: pasta relativa dos arquivos JS"
         required: false
         type: string
-  push:
-    branches:
-      - nexus/rea-toolkit-release-007-20261108
-    paths:
-      - .github/workflows/nexus-rea-toolkit.yml
-      - nexus-pilot/toolkit/**
-      - nexus-pilot/module-graph.mjs
-      - nexus-pilot/rea-import-audit.mjs
-      - nexus-pilot/rea-import-audit.test.mjs
-
 permissions:
   contents: read
 
@@ -87,6 +77,8 @@ jobs:
           const info=await response.json();
           if(info.private!==false)throw new Error('PRIVATE_REPOSITORY_REFUSED');
           if(info.size>target.limits.max_repository_size_kb)throw new Error('REPOSITORY_TOO_LARGE');
+          const licenses = new Set(['MIT','Apache-2.0','BSD-2-Clause','BSD-3-Clause','ISC','MPL-2.0','GPL-3.0','LGPL-3.0']);
+          if(target.preset==='public'&&!licenses.has(info.license?.spdx_id))throw new Error('PUBLIC_PROJECT_LICENSE_NOT_VERIFIED');
           if(info.archived)console.log('Warning: source repository is archived');
           const targetFile=join(process.env.RUNNER_TEMP,'rea-toolkit-target.json');
           writeFileSync(targetFile,JSON.stringify(target,null,2));
@@ -185,6 +177,7 @@ jobs:
           cd "$RUNNER_TEMP"
           timeout 440s npx --yes rea-agents@6.8.0 analyze-javascript-application "$SOURCE_ROOT" --json > "$RUNNER_TEMP/rea-results/REA_Evidence.json"
           test -s "$RUNNER_TEMP/rea-results/REA_Evidence.json"
+          test "$(wc -c < "$RUNNER_TEMP/rea-results/REA_Evidence.json")" -le 90000000
           echo 'REA_ANALYSIS_COMMAND_FINISHED=true'
       - name: Compare REA imports and produce inspectable Portuguese answer
         env:
