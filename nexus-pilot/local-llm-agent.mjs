@@ -15,7 +15,7 @@ if (!targetArg || !reportArg) {
   process.exit(64);
 }
 const target = resolve(targetArg), reportPath = resolve(reportArg);
-const modelId = 'onnx-community/Qwen2.5-0.5B-Instruct';
+const modelId = 'onnx-community/Qwen2.5-1.5B-Instruct';
 const allowed = new Set(['analyze_javascript_application', 'inspect_analysis_view']);
 env.cacheDir = join(process.env.RUNNER_TEMP || '/tmp', 'nexus-hf-cache');
 const report = {
@@ -160,8 +160,8 @@ try {
   stage('OPEN_MODEL_LOADED_ON_CPU');
 
   const choicePrompt=[
-    {role:'system',content:'You are a technical agent selecting a tool. Reply with exactly ONE tool name; no quotes or explanation.'},
-    {role:'user',content:'REA analyzed JavaScript and retained its evidence. To inspect module references from the retained Evidence ID, which tool must you call? Choose: analyze_javascript_application OR inspect_analysis_view. Reply with the exact tool name only.'},
+    {role:'system',content:'You are a technical agent selecting ONE operation from tool descriptions. Reply with exactly the tool name, no quotes or explanation.'},
+    {role:'user',content:'Question: which modules were identified in the ALREADY-COMPLETED JavaScript analysis? A valid retained Evidence ID is available. Choose the next operation by its behavior: (A) analyze_javascript_application = scan a directory AGAIN and generate NEW evidence; (B) inspect_analysis_view = read an EXISTING retained Evidence to view its modules without running another analysis. Reply with the EXACT tool name needed to answer using the EXISTING Evidence.'},
   ];
   const choiceResult=await generator(choicePrompt,{max_new_tokens:32,do_sample:false,return_full_text:false});
   const rawChoice=outputText(choiceResult);
