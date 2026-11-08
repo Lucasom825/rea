@@ -74,3 +74,45 @@ do pacote e documentação/código-fonte. Não atribuir redução de tokens ou c
 
 **Sem merge, sem deploy, sem cópia de dados privados e sem alegação de economia financeira.**
 Fonte canônica de execução: GitHub Actions e artefatos JSON dos dois runs acima.
+
+
+## Diagnóstico confirmado do filtro (continuação do piloto)
+
+A origem do desacordo com a documentação foi identificada comparando a versão
+**publicada** e o código **mais recente**:
+
+- Release oficial [rea-agents-6.8.0](https://github.com/morluto/rea/releases/tag/rea-agents-6.8.0),
+  publicado em 25/10/2026.
+- No tag `rea-agents-6.8.0`, `src/config/mcpToolFamilies.ts` não existe e
+  `src/server/createServer.ts` não contém o parser da variável
+  `REA_MCP_TOOL_FAMILIES`.
+- Na branch `main` atual do fork, essa configuração já existe no código,
+  ainda com versão declarada do pacote `6.8.0`. Versão do código-fonte
+  não prova que um recurso esteja disponível no artefato publicado.
+- Conclusão: a versão publicada e executada **6.8.0 não implementa o filtro**;
+  por isso o teste restrito não diminuiu as 229 ferramentas. Não se trata de
+  ganho de performance comprovado nem de proteção obtida no servidor.
+
+## Contorno verificado: allowlist no nosso cliente
+
+GitHub Actions **SUCCESS**:
+https://github.com/Lucasom825/rea/actions/runs/42505900001
+
+O cliente `nexus-pilot/mcp-probe.mjs` foi atualizado para aceitar somente
+`analyze_javascript_application` e `inspect_analysis_view` em operações
+`tools/call`. Uma tentativa de invocar `open_binary` foi recusada **antes de
+enviar o pedido ao servidor**. A validação conferiu no JSON original:
+
+- Servidor ainda anuncia **229** ferramentas.
+- Cliente seleciona explicitamente **2** ferramentas; chamada não autorizada bloqueada.
+- Análise e consulta retida continuam com **7/7** módulos do TodoMVC.
+- Teste do cliente: **8.915 ms**, incluindo inicialização e download/resolução
+  por npm. Sem inferência de ganho de velocidade, custo ou redução de tokens.
+- **Não é um controle de autorização do servidor MCP**: outro cliente conectado
+  ainda pode acessar o catálogo completo. O guard protege apenas as chamadas
+  originadas pelo cliente de teste.
+
+Ainda não existe conexão MCP direta com um modelo de IA do NEXUS, nem teste
+com prompts interpretados por um LLM. A próxima etapa permanece a integração
+controlada a um modelo de IA autorizado, com comparação do raciocínio e das
+citações de Evidence contra o código real.
