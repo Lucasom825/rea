@@ -1,6 +1,6 @@
 # REA Toolkit — análise pública JavaScript e revisão do motor
 
-Este repositório contém o REA Toolkit e a correção do analisador de importações.
+Este repositório contém o REA Toolkit e a auditoria independente de importações. A REA mantém o comportamento original de inferência para não quebrar os contratos CLI/MCP; candidatos não comprovados são diferenciados por confiança.
 O botão utiliza a versão de código da branch selecionada: use `main` somente
 após o PR de atualização ser integrado e a execução nessa branch ser validada.
 Ela gera um relatório técnico em português, verificando o inventário de arquivos
@@ -11,7 +11,7 @@ e as importações da REA contra um parser independente de JavaScript.
 
 1. Recebe um projeto público selecionado e um commit Git completo (40 caracteres).
 2. Confirma que o repositório é público, impõe limites de tamanho e baixa o código no commit exato.
-3. Instala dependências, compila a REA corrigida da própria revisão GitHub e a executa em modo estático, com verificador independente de importações. **Não usa mais o pacote antigo `rea-agents@6.8.0`**.
+3. Instala dependências, compila a REA desta revisão GitHub e a executa em modo estático, com verificador independente de importações. **Não usa o pacote publicado `rea-agents@6.8.0`**; a auditoria mostra separadamente o que o extrator original não comprovou.
 4. Compara os locais de importação por arquivo/linha/dependência, registra divergências e indica ressalvas.
 5. Gera um relatório em português diretamente no **GitHub Actions > Summary**, acompanhado de arquivos JSON auditáveis com retenção de 3 dias.
 
@@ -83,12 +83,37 @@ e um mapa de módulos internos mais referenciados, gerado a partir do AST, sem
 inferir comportamento. Publicação desta revisão depende de validação e revisão
 humana. O código-fonte local da REA foi alterado e recompilado, mas **não foi publicada nova versão no npm**. Memora e NEXUS de produção permanecem inalterados.
 
-### Provas executadas contra o motor corrigido
+### Histórico de provas do experimento de motor (substituído por revisão compatível)
 
-- [Node-RED — código REA recompilado, 145 testes aprovados, 177/177 importações reconciliadas, 0 extras](https://github.com/Lucasom825/rea/actions/runs/42530678687).
-- [Axios — REA recompilada, 199/199 importações reconciliadas, 12 testes controlados e 7 ocorrências adicionais com linhas alternativas ressalvadas](https://github.com/Lucasom825/rea/actions/runs/42530872243).
+- [Node-RED — experimento de motor posteriormente substituído, 145 testes aprovados, 177/177 importações no teste isolado](https://github.com/Lucasom825/rea/actions/runs/42530678687). A alteração rompeu contratos CLI/MCP em testes de aceitação mais amplos; seus números não são a situação do código atual.
+- [Axios — experimento de motor posteriormente substituído, 199/199 importações no teste isolado](https://github.com/Lucasom825/rea/actions/runs/42530872243). Seus números não substituem os testes do motor atual.
 - O workflow revisto faz o build da própria REA no GitHub Actions antes da análise. Isso pode aumentar o uso do GitHub Actions; disponibilidade, cotas e custo da conta não foram auditados.
 - Para conferir qual motor está em uso, consulte a revisão GitHub do workflow executado. Antes da integração, a versão antiga de `main` ainda chama o pacote publicado no npm; esta revisão usa o motor compilado localmente.
+
+## Revisão estável — contrato CLI/MCP preservado (08/11/2026)
+
+Uma CI completa detectou mais de 100 falhas em cenários de carregadores
+indiretos/ambíguos com a tentativa de classificação agressiva no motor.
+Essa alteração foi **revertida**; o analisador preserva os candidatos de
+importação que dependem de evidência incerta, explicitamente como
+`interpretation: unproven-module-loader` e `confidence: low`.
+O motor compilado e o auditor AST independente não executam o código-alvo.
+
+Prova da nova revisão:
+- [417 testes de aceitação/regressão CLI/MCP e 145 testes focados, Node-RED com 47 arquivos e relatório emitido](https://github.com/Lucasom825/rea/actions/runs/42535904524): SUCCESS.
+- **Node-RED: AST verificou 177 locais sintáticos; REA confirmou estritamente
+  153; outros 24 têm expressão literal, mas `properties.specifier=null`.
+  Existem 20 chamadas ordinárias classificadas como possíveis imports e
+  quatro requires dinâmicos não literais. O relatório é
+  `INCONCLUSIVO` e `REA_TOOLKIT_TECHNICAL_APPROVAL=false`.
+- A cobertura sintática AST não prova que o motor recuperou a semântica.
+  Uma ação GitHub verde prova que o relatório saiu, não que o resultado
+  técnico foi aprovado.
+
+Essa é uma ferramenta de auditoria estrutural com ressalvas, **não um
+reconstrutor automático de aplicações**. A publicação em main exige CI
+completa bem-sucedida e revisão humana; a qualidade semântica geral
+permanece não homologada.
 
 ## Próximos limites
 
