@@ -1,6 +1,8 @@
-# REA Toolkit 007 — análise pública de JavaScript, com evidência
+# REA Toolkit — análise pública JavaScript e revisão do motor
 
-Esta ferramenta já está disponível em `main` como o primeiro piloto REA/NEXUS.
+O Toolkit original já está disponível em `main` como piloto REA/NEXUS.
+Esta revisão corrige o analisador original, mas permanece em branch de revisão
+e **ainda não está publicada em `main`**.
 Ela gera um relatório técnico em português, verificando o inventário de arquivos
 e as importações da REA contra um parser independente de JavaScript.
 **Não é um agente de IA autônomo**, nem substitui testes de execução.
@@ -9,7 +11,7 @@ e as importações da REA contra um parser independente de JavaScript.
 
 1. Recebe um projeto público selecionado e um commit Git completo (40 caracteres).
 2. Confirma que o repositório é público, impõe limites de tamanho e baixa o código no commit exato.
-3. Executa a REA 6.8.0 em modo estático e um segundo verificador de importações.
+3. Instala dependências, compila a REA corrigida da própria revisão GitHub e a executa em modo estático, com verificador independente de importações. **Não usa mais o pacote antigo `rea-agents@6.8.0`**.
 4. Compara os locais de importação por arquivo/linha/dependência, registra divergências e indica ressalvas.
 5. Gera um relatório em português diretamente no **GitHub Actions > Summary**, acompanhado de arquivos JSON auditáveis com retenção de 3 dias.
 
@@ -71,14 +73,21 @@ A prova isolada do Node-RED (commit público
 arquivos JS. O parser de referência encontrou 177 importações; apenas 153 foram
 reconciliadas com a REA, com **24 locais ausentes**. O resultado técnico é
 **INCONCLUSIVO**, mesmo com a execução e entrega de relatório bem-sucedidas.
-A auditoria forense do artefato original identificou que os 24 locais constam no Evidence da REA como expressões `require(...)` literais com `properties.specifier=null`, distribuídos em `flows/Subflow.js` (10), `storage/localfilesystem/projects/Project.js` (10) e `telemetry/index.js` (4). Portanto são registros incompletos, não ausência integral da observação. Os 135 registros extras sem especificador se dividem em **24 requires literais que coincidem com AST**, **107 chamadas de métodos comuns rotuladas como imports** e **4 requires dinâmicos**. A comparação estrita permanece 153/177 e o status técnico é **INCONCLUSIVO**, pois o motor não corrigiu o campo e apresenta classificações indevidas.
+A auditoria forense do artefato original identificou que os 24 locais constam no Evidence da REA como expressões `require(...)` literais com `properties.specifier=null`, distribuídos em `flows/Subflow.js` (10), `storage/localfilesystem/projects/Project.js` (10) e `telemetry/index.js` (4). Portanto são registros incompletos, não ausência integral da observação. Os 135 registros extras sem especificador se dividem em **24 requires literais que coincidem com AST**, **107 chamadas de métodos comuns rotuladas como imports** e **4 requires dinâmicos**. No **pacote antigo 6.8.0**, a comparação estrita permaneceu 153/177 e o status técnico foi **INCONCLUSIVO**. Na prova isolada com a **fonte do motor corrigida**, os 177/177 sítios do Node-RED foram reconciliados sem extras no grafo de importações. Essa prova não demonstra precisão semântica ou comportamento em execução.
 Evidência: https://github.com/Lucasom825/rea/actions/runs/42527372456 . Auditoria detalhada em teste isolado: https://github.com/Lucasom825/rea/actions/runs/42528986976 .
 
 Para não confundir conclusão do job com qualidade do resultado, a nova versão
 adiciona anotação visível de alerta quando o relatório técnico for inconclusivo
 e um mapa de módulos internos mais referenciados, gerado a partir do AST, sem
 inferir comportamento. Publicação desta revisão depende de validação e revisão
-humana; não muda a REA 6.8.0 nem altera Memora ou NEXUS de produção.
+humana. O código-fonte local da REA foi alterado e recompilado, mas **não foi publicada nova versão no npm**. Memora e NEXUS de produção permanecem inalterados.
+
+### Provas executadas contra o motor corrigido
+
+- [Node-RED — código REA recompilado, 145 testes aprovados, 177/177 importações reconciliadas, 0 extras](https://github.com/Lucasom825/rea/actions/runs/42530678687).
+- [Axios — REA recompilada, 199/199 importações reconciliadas, 12 testes controlados e 7 ocorrências adicionais com linhas alternativas ressalvadas](https://github.com/Lucasom825/rea/actions/runs/42530872243).
+- O workflow revisto faz o build da própria REA no GitHub Actions antes da análise. Isso pode aumentar o uso do GitHub Actions; disponibilidade, cotas e custo da conta não foram auditados.
+- Até a publicação desse PR em `main`, o botão de produção continua executando a REA antiga do npm, com os problemas demonstrados em Node-RED.
 
 ## Próximos limites
 
