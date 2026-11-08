@@ -83,6 +83,9 @@ export function buildReport({
     audit.additional_same_module_specifier_other_line > 0
       ? "REA_EXTRA_SITES_WITH_OTHER_SOURCE_LINE"
       : null,
+    audit.ast_sites_with_literal_require_but_null_rea_specifier > 0
+      ? "REA_LITERAL_REQUIRES_WITHOUT_NORMALIZED_SPECIFIER"
+      : null,
   ].filter(Boolean);
   const status = hard.length
     ? "INCONCLUSIVO"
@@ -123,6 +126,12 @@ export function buildReport({
       ast_import_sites: audit.ast_import_sites ?? null,
       matched_import_sites: audit.rea_exact_ast_site_matches ?? null,
       ast_sites_absent_from_rea: audit.ast_sites_absent_from_rea ?? null,
+      literal_require_without_structured_specifier:
+        audit.ast_sites_with_literal_require_but_null_rea_specifier ?? null,
+      no_literal_rea_candidate:
+        audit.ast_sites_without_even_literal_rea_candidate ?? null,
+      additional_rea_unreconciled:
+        audit.rea_additional_sites_unreconciled_with_ast ?? null,
       extra_rea_sites: audit.rea_additional_sites ?? null,
       extra_without_specifier:
         audit.additional_without_explicit_specifier ?? null,
@@ -169,14 +178,23 @@ export function buildReport({
     "| Importações de código identificadas pelo AST | " +
       asInt(audit.ast_import_sites) +
       " |",
-    "| Importações AST reconciliadas com REA | " +
+    "| Importações AST confirmadas por specifier estruturado REA | " +
       asInt(audit.rea_exact_ast_site_matches) +
       " |",
-    "| Importações AST não reconhecidas pela REA | " +
+    "| Importações AST com require literal na REA, mas sem specifier estruturado | " +
+      asInt(audit.ast_sites_with_literal_require_but_null_rea_specifier) +
+      " |",
+    "| Importações AST sem sequer candidato require literal na REA | " +
+      asInt(audit.ast_sites_without_even_literal_rea_candidate) +
+      " |",
+    "| Importações AST ainda sem correspondência estrita REA | " +
       asInt(audit.ast_sites_absent_from_rea) +
       " |",
     "| Candidatos adicionais REA sem validação de importação única | " +
       asInt(audit.rea_additional_sites) +
+      " |",
+    "| Candidatos adicionais REA não reconciliados com o AST | " +
+      asInt(audit.rea_additional_sites_unreconciled_with_ast) +
       " |",
     "| Incógnitas da REA no grafo semântico | " +
       asInt(report.checks.rea_semantic_unknowns) +
@@ -202,6 +220,7 @@ export function buildReport({
     "",
     "- Os números refletem os arquivos e as importações identificados em leitura estática, sem interpretações inventadas por modelo de IA.",
     "- A comparação por localização confronta a REA com um parser independente. Importações repetidas não são contadas como dependências distintas.",
+    "- Quando a REA mostra uma expressão require() literal mas deixa o campo specifier vazio, registramos a observação separadamente, sem contá-la como correspondência estrita.",
     "- " +
       (trueRuntime
         ? "No preset Axios, 12 verificações de três funções puras observaram resultados reais, sem requisições HTTP."
