@@ -1,0 +1,8 @@
+{
+  "name": "rea-nexus-synthetic-sourcing-demo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Synthetic and network-free JavaScript target for the REA pilot",
+  "exports": "./sourcing.js"
+}
