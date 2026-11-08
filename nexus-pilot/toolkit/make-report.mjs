@@ -40,7 +40,7 @@ export function buildReport({
       typeof edge.target !== "string"
     )
       continue;
-    const key = edge.from + "\\0" + edge.target;
+    const key = JSON.stringify([edge.from, edge.target]);
     if (linked.has(key)) continue;
     linked.add(key);
     directDependents.set(
@@ -50,9 +50,10 @@ export function buildReport({
   }
   const structuralHubs = [...directDependents.entries()]
     .map(([module, direct_dependents]) => ({ module, direct_dependents }))
-    .sort((a, b) =>
-      b.direct_dependents - a.direct_dependents ||
-      a.module.localeCompare(b.module),
+    .sort(
+      (a, b) =>
+        b.direct_dependents - a.direct_dependents ||
+        a.module.localeCompare(b.module),
     )
     .slice(0, 8);
   const hard = [
@@ -232,7 +233,14 @@ export function buildReport({
     "| --- | ---: |",
     ...(structuralHubs.length
       ? structuralHubs.map(
-          (hub) => "| " + tick + safe(hub.module) + tick + " | " + hub.direct_dependents + " |",
+          (hub) =>
+            "| " +
+            tick +
+            safe(hub.module) +
+            tick +
+            " | " +
+            hub.direct_dependents +
+            " |",
         )
       : ["| Sem relações internas estáticas comprovadas | 0 |"]),
     "",
