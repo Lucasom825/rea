@@ -44,7 +44,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        sample: [axios, todomvc]
+        sample: [axios, todomvc, public]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
@@ -65,9 +65,9 @@ jobs:
         id: target
         env:
           REQ_PRESET: ${{ matrix.sample }}
-          REQ_REPO: ${{ inputs.repository || '' }}
-          REQ_COMMIT: ${{ inputs.commit || '' }}
-          REQ_DIRECTORY: ${{ inputs.directory || '' }}
+          REQ_REPO: ${{ matrix.sample == 'public' && 'tastejs/todomvc' || inputs.repository || '' }}
+          REQ_COMMIT: ${{ matrix.sample == 'public' && 'ff43b02e59dfa604386bb382034b2cd07c2bcd8a' || inputs.commit || '' }}
+          REQ_DIRECTORY: ${{ matrix.sample == 'public' && 'examples/javascript-es6/src' || inputs.directory || '' }}
           REPO_READ_TOKEN: ${{ github.token }}
         shell: bash
         run: |
