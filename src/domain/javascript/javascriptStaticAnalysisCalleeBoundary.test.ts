@@ -114,9 +114,11 @@ it("does not promote exhausted alias selectors to module imports", () => {
   const analysis = analyzeJavaScriptStaticSource(aliasSelectionBudgetSource());
   expect(analysis.parse_error_count).toBe(0);
   expect(analysis.parse_status).toBe("partial");
-  // The selector budget leaves the call unresolved. A completely local object
-  // is not positive evidence of a Node module delegate.
-  expect(analysis.references).toEqual([]);
+  // Preserve the uncertain reference for diagnostics. It must not become
+  // an imports relationship without a verified loader and specifier.
+  expect(analysis.references).toEqual([
+    expect.objectContaining({ kind: "require", specifier: null }),
+  ]);
   expect(analysis.limitations).toContainEqual(
     expect.stringMatching(/Alias selection expansion.*512/u),
   );
@@ -128,12 +130,16 @@ it("keeps real literal require sources after exhausting unrelated selector work"
     "const node={status(){}}; node.status({text:'ready'});";
   const analysis = analyzeJavaScriptStaticSource(source);
   expect(analysis.parse_error_count).toBe(0);
-  expect(analysis.references).toEqual([
-    expect.objectContaining({
-      kind: "require",
-      specifier: "./actual-dependency.cjs",
-    }),
-  ]);
+  expect(analysis.references).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ kind: "require", specifier: null }),
+      expect.objectContaining({
+        kind: "require",
+        specifier: "./actual-dependency.cjs",
+      }),
+    ]),
+  );
+  expect(analysis.references).toHaveLength(2);
   expect(analysis.limitations).toContainEqual(
     expect.stringMatching(/Alias selection expansion.*512/u),
   );
