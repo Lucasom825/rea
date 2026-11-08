@@ -90,6 +90,26 @@ test("unknown dynamic imports force explicit qualification", () => {
     ),
   );
 });
+test("null-specifier literal require remains technically inconclusive and disclosed", () => {
+  const pending = {
+    ...audit,
+    status: "INCONCLUSIVE_REA_AST_DISAGREEMENT",
+    ast_sites_absent_from_rea: 1,
+    ast_sites_with_literal_require_but_null_rea_specifier: 1,
+    ast_sites_without_even_literal_rea_candidate: 0,
+    rea_additional_sites_unreconciled_with_ast: 0,
+  };
+  const x = run({ audit: pending });
+  assert.equal(x.report.status, "INCONCLUSIVO");
+  assert.equal(x.report.checks.literal_require_without_structured_specifier, 1);
+  assert.equal(x.report.checks.no_literal_rea_candidate, 0);
+  assert.match(x.markdown, /sem specifier estruturado/);
+  assert.ok(
+    x.report.remaining_uncertainties.includes(
+      "REA_LITERAL_REQUIRES_WITHOUT_NORMALIZED_SPECIFIER",
+    ),
+  );
+});
 test("no runtime execution is claimed for arbitrary targets", () => {
   const x = run({ behaviorPass: true });
   assert.equal(x.report.checks.behavior_test_verified, false);
