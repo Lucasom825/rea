@@ -79,6 +79,7 @@
         "package.json",
         "package-lock.json",
         "scripts/**/*.{cjs,cts,js,jsx,mjs,mts,ts,tsx}",
+        "nexus-pilot/**/*.{cjs,cts,js,jsx,mjs,mts,ts,tsx}",
         "src/**/*.{cjs,cts,js,jsx,mjs,mts,ts,tsx}",
         "tests/**/*.{cjs,cts,js,jsx,mjs,mts,ts,tsx}",
         "docs/**/*.{cjs,cts,js,jsx,mjs,mts,ts,tsx}",
