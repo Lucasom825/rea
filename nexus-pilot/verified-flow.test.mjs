@@ -47,8 +47,8 @@ test('renamed handler is discovered rather than hard-coded',()=>{
   assert.equal(result.steps[1].method,'createTodo');
 });
 
-test('changed View listener event is not silently treated as change',()=>{
-  const result=mutated(root=>rewrite(root,'view.js','"change"','"input"'));
+test('missing actual View handler call becomes INCONCLUSIVE',()=>{
+  const result=mutated(root=>rewrite(root,'view.js','handler(this.$newTodo.value)','missingHandler(this.$newTodo.value)'));
   assert.equal(result.status,'INCONCLUSIVE',JSON.stringify(result));
 });
 
@@ -57,4 +57,32 @@ test('swapped factory constructor wiring rejects the causal path',()=>{
     'new Controller(this.model, this.view)',
     'new Controller(this.view, this.model)'));
   assert.equal(result.status,'INCONCLUSIVE',JSON.stringify(result));
+});
+
+
+test('independent itemRemove event traces View to Store.remove',()=>{
+  const result=verifyEventFlow(sourceRoot,'itemRemove');
+  assert.equal(result.status,'VERIFIED_STATIC_CHAIN',JSON.stringify(result));
+  assert.deepEqual(result.steps.map(s=>s.className+'.'+s.method),
+    ['View.bindCallback','Controller.removeItem','Model.remove','Store.remove']);
+});
+test('independent itemToggle event traces View to Store.save',()=>{
+  const result=verifyEventFlow(sourceRoot,'itemToggle');
+  assert.equal(result.status,'VERIFIED_STATIC_CHAIN',JSON.stringify(result));
+  assert.deepEqual(result.steps.map(s=>s.className+'.'+s.method),
+    ['View.bindCallback','Controller.toggleComplete','Model.update','Store.save']);
+});
+test('remove event refuses its storage write link when mutation is removed',()=>{
+  const inspected=verifyEventFlow(sourceRoot,'itemRemove');
+  assert.equal(inspected.status,'VERIFIED_STATIC_CHAIN');
+  const broken=(()=> {
+    // The mutation builder only mutates one copy and is deliberately re-run.
+    const tmp=mkdtempSync(join(tmpdir(),'rea-remove-negative-'));
+    cpSync(join(sourceRoot,'src'),join(tmp,'src'),{recursive:true});
+    try {
+      rewrite(tmp,'store.js','todos.splice(i, 1)','todos.slice(i, 1)');
+      return verifyEventFlow(tmp,'itemRemove');
+    } finally { rmSync(tmp,{recursive:true,force:true}); }
+  })();
+  assert.equal(broken.status,'INCONCLUSIVE',JSON.stringify(broken));
 });
