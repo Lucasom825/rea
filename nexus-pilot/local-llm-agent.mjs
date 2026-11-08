@@ -200,13 +200,14 @@ try {
     excerpt('controller.js','this.view.bindCallback("newTodo"',260),
     excerpt('controller.js','addItem(title) {',260),
     excerpt('model.js','create(title, callback) {',340),
-    excerpt('store.js','save(updateData, callback, id) {',490),
+    excerpt('store.js','save(updateData, callback, id) {',1100),
     excerpt('app.js','function Todo(name) {',300),
   ].join('\n\n');
-  const question='Explique o fluxo de criar uma nova tarefa TodoMVC, desde a View até Store, sem inventar banco de dados. Quais funcoes estao envolvidas?';
+  const question='Quando uma pessoa cria uma nova tarefa em TodoMVC, quais sao os quatro metodos exatos no caminho do evento ate a escrita no armazenamento?';
+  report.observations.prompt_version='method_chain_v2';
   const messages=[
-    {role:'system',content:'Você é um agente de análise de código. Use somente os fatos fornecidos. Diferencie evidências da REA (módulos) e trechos originais do código. Se algo não estiver comprovado, declare incerteza. Responda em português, em até 110 palavras.'},
-    {role:'user',content:'Pergunta: '+question+'\n\nMCP/REA confirmou os módulos: '+seen.join(', ')+'. Esses nomes NÃO provam chamadas internas.\n\nTrechos do código-fonte público verificado:\n'+snippets},
+    {role:'system',content:'Você é um agente de engenharia de software baseado em código. Não faça uma descrição geral dos componentes. Trace apenas o caminho causal solicitado, com nomes de métodos exatos. Use os trechos recebidos como evidência. Não suponha que uma chamada tenha sido executada só porque existe no código. Se faltar evidência, escreva INCONCLUSIVO. Responda em português, em até 85 palavras.'},
+    {role:'user',content:'Pergunta: '+question+'\n\nTarefa: identifique em ORDEM os quatro métodos responsáveis por: (1) registrar o listener do evento newTodo na View; (2) receber o title no Controller e acionar Model; (3) construir o item no Model e chamar storage.save; (4) salvar o item em Store. Responda na primeira linha como uma cadeia com quatro nomes de métodos separados por ->, usando nomes encontrados nos trechos, não descrições dos módulos. Em seguida, uma frase sobre o limite das evidências (código estático não é execução real). Não liste funções de edição, renderização ou exclusão.\n\nMCP/REA identificou os módulos: '+seen.join(', ')+'. Isso comprova inventário estrutural, não execução.\n\nTrechos do código-fonte público verificado:\n'+snippets},
   ];
   const answerResult=await generator(messages,{max_new_tokens:200,do_sample:false,return_full_text:false});
   const answer=outputText(answerResult).trim();
