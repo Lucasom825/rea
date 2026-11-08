@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { auditReaImports } from './rea-import-audit.mjs';
-const ast={modules:2,edges:[
+const ast={modules:2,inventory:[{file:'a.js'},{file:'b.js'}],edges:[
   {from:'a.js',line:1,specifier:'./b.js'},
   {from:'a.js',line:2,specifier:'some-pkg'},
 ]};
@@ -47,4 +47,18 @@ test('module identity is required to match a site',()=>{
   const s=run([e('b.js',1,'./b.js'),e('a.js',2,'some-pkg')]);
   assert.equal(s.ast_sites_absent_from_rea,1);
   assert.equal(s.status,'INCONCLUSIVE_REA_AST_DISAGREEMENT');
+});
+
+test('custom scope paths normalize from REA to nested source module identity',()=>{
+  const inventory={modules:2,inventory:[{file:'nested/a.js'},{file:'b.js'}],edges:[
+    {from:'nested/a.js',line:3,specifier:'../b.js'},
+  ]};
+  const evidence={normalized_result:{graph:{edges:[{
+    relation:'imports',
+    evidence:{location:{value:{source:'examples/sample/src/nested/a.js',start:{line:3}}}},
+    properties:{specifier:'../b.js'},
+  }]}}};
+  const r=auditReaImports(inventory,evidence);
+  assert.equal(r.rea_exact_ast_site_matches,1);
+  assert.equal(r.status,'AST_SITE_COVERAGE_VERIFIED_WITH_UNCERTAIN_REA_EXTRAS');
 });
