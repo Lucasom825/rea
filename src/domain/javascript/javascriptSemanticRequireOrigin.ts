@@ -711,14 +711,22 @@ export const semanticRequireCallAt = (
   state: JavaScriptSemanticAnalysisState,
   factoryBindingIds: ReadonlySet<string>,
 ): JavaScriptRequireCallFact | undefined => {
-  if (semanticModuleRequireCallAt(node, state, false))
+  const callee = unwrapJavaScriptExpression(node.callee).node;
+  // A .call/.apply invocation can retain a possible captured require delegate
+  // even when exact alias ownership is unresolved. Ordinary method calls,
+  // however, must not become imports merely because alias search exhausted.
+  const indirectInvocation =
+    (t.isMemberExpression(callee) || t.isOptionalMemberExpression(callee)) &&
+    ["call", "apply"].includes(
+      semanticStaticPropertyKey(callee.property, callee.computed) ?? "",
+    );
+  if (semanticModuleRequireCallAt(node, state, indirectInvocation))
     return {
       operation: "load",
       loader: "unknown",
       arguments: undefined,
       sourceRelative: false,
     };
-  const callee = unwrapJavaScriptExpression(node.callee).node;
   if (
     (t.isMemberExpression(callee) || t.isOptionalMemberExpression(callee)) &&
     ["call", "apply"].includes(
