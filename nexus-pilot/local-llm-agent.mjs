@@ -9,6 +9,7 @@ import { join, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { pipeline, env } from '@huggingface/transformers';
 import { verifyEventFlow, validatedExplanation } from './verified-flow.mjs';
+import { validateConstrainedModelAnswer } from './answer-policy.mjs';
 
 const [targetArg, reportArg] = process.argv.slice(2);
 if (!targetArg || !reportArg) {
@@ -229,19 +230,10 @@ try {
   report.observations.answer_question=question;
   report.observations.answer_evidence_sources='REA MCP module references + original pinned source excerpts';
 
-  const expected=verified.steps.map(x=>({file:x.file,method:x.method,qualified:x.className+'.'+x.method}));
-  const rawFirstLine=answer.split(/\r?\n/,1)[0].trim();
-  const modelChain=rawFirstLine.split(/\s*(?:->|→)\s*/).map(x=>x.trim().replace(/[.。]+$/,''));
-  const correctChain=modelChain.length===expected.length&&
-    modelChain.every((part,i)=>part===expected[i].qualified);
-  const unsupported=/\blocalStorage\b|\bSQL\b|\bMongoDB\b|\bPostgreSQL\b/i.test(answer);
-  report.observations.rule_checks={
-    expected:expected.map(x=>x.qualified),
-    model_chain:modelChain,
-    exact_order_and_names:correctChain,
-    unsupported_database_claim:unsupported,
-  };
-  report.observations.model_answer_pass=correctChain&&!unsupported;
+  const policy=validateConstrainedModelAnswer(answer,verified.steps);
+  report.observations.rule_checks=policy;
+  report.observations.model_answer_pass=policy.pass;
+  report.observations.model_answer_rejection_reasons=policy.reasons;
   report.observations.final_answer={
     origin:report.observations.model_answer_pass?'LLM_FORMAT_VALIDATED_AGAINST_STATIC_SOURCE':'AST_STATIC_VERIFIER_FALLBACK',
     status:trusted.status,
