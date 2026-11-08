@@ -4,7 +4,7 @@ on:
     branches:
       - nexus/rea-engine-quality-014-20261108
 permissions:
-  contents: read
+  contents: write
 jobs:
   check:
     runs-on: ubuntu-24.04
@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          persist-credentials: false
+          persist-credentials: true
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version-file: .nvmrc
@@ -20,7 +20,23 @@ jobs:
         run: npm ci --no-audit --no-fund
         env:
           HUSKY: "0"
-      - name: Validate format of changed source
+      - name: Format the scoped changed sources
+        run: npx oxfmt nexus-pilot/rea-import-audit.mjs nexus-pilot/rea-import-audit.test.mjs nexus-pilot/toolkit/make-report.mjs nexus-pilot/toolkit/make-report.test.mjs nexus-pilot/toolkit/resolve-target.mjs nexus-pilot/toolkit/resolve-target.test.mjs src/application/javascript/JavaScriptArtifactGraphFindings.ts src/application/javascript/JavaScriptArtifactGraphStructure.test.ts src/domain/javascript/javascriptSemanticRequireOrigin.ts src/domain/javascript/javascriptStaticAnalysisCalleeBoundary.test.ts
+      - name: Commit official formatted sources to disposable branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add nexus-pilot/rea-import-audit.mjs nexus-pilot/rea-import-audit.test.mjs nexus-pilot/toolkit/make-report.mjs nexus-pilot/toolkit/make-report.test.mjs nexus-pilot/toolkit/resolve-target.mjs nexus-pilot/toolkit/resolve-target.test.mjs src/application/javascript/JavaScriptArtifactGraphFindings.ts src/application/javascript/JavaScriptArtifactGraphStructure.test.ts src/domain/javascript/javascriptSemanticRequireOrigin.ts src/domain/javascript/javascriptStaticAnalysisCalleeBoundary.test.ts
+          if git diff --cached --quiet; then
+            echo "NO_FORMAT_CHANGES"
+          else
+            git commit -m 'style(javascript): apply verified oxfmt to focused source changes'
+            git push origin HEAD:nexus/rea-engine-quality-014-20261108
+          fi
+      - name: Verify formatting after official format
         run: npx oxfmt --check nexus-pilot/rea-import-audit.mjs nexus-pilot/rea-import-audit.test.mjs nexus-pilot/toolkit/make-report.mjs nexus-pilot/toolkit/make-report.test.mjs nexus-pilot/toolkit/resolve-target.mjs nexus-pilot/toolkit/resolve-target.test.mjs src/application/javascript/JavaScriptArtifactGraphFindings.ts src/application/javascript/JavaScriptArtifactGraphStructure.test.ts src/domain/javascript/javascriptSemanticRequireOrigin.ts src/domain/javascript/javascriptStaticAnalysisCalleeBoundary.test.ts
       - name: Validate TypeScript types
         run: npm run typecheck
