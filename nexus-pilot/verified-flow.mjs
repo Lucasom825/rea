@@ -64,7 +64,10 @@ export function verifyEventFlow(root,eventName='newTodo'){
   visit(binding.node,node=>{
     if(!ts.isCaseClause(node)||lit(node.expression)!==eventName)return;
     visit(node,sub=>{
-      if(!ts.isCallExpression(sub)||ident(sub.expression)!=='$on'||lit(sub.arguments[1])!=='change')return;
+      if(!ts.isCallExpression(sub))return;
+      const bindingKind=ident(sub.expression);
+      const domEventPosition=bindingKind==='$on'?1:bindingKind==='$delegate'?2:-1;
+      if(domEventPosition<0||!lit(sub.arguments[domEventPosition]))return;
       let handlerUsed=false;
       visit(sub,other=>{if(ts.isCallExpression(other)&&ident(other.expression)==='handler')handlerUsed=true;});
       if(handlerUsed)listener=loc(sub,binding.sf);
@@ -109,13 +112,13 @@ export function verifyEventFlow(root,eventName='newTodo'){
     const key=method.className+'.'+method.node.name?.getText(method.sf);
     if(visited.has(key))return;
     const seen=new Set(visited);seen.add(key);
-    let usedStorage=false,pushed=false,wroteStorage=false;
+    let usedStorage=false,mutatedList=false,wroteStorage=false;
     visit(method.node,node=>{
       if(ts.isIdentifier(node)&&node.text==='memoryStorage')usedStorage=true;
-      if(ts.isCallExpression(node)&&prop(node.expression)==='push')pushed=true;
+      if(ts.isCallExpression(node)&&['push','splice','unshift'].includes(prop(node.expression)))mutatedList=true;
       if(ts.isBinaryExpression(node)&&node.operatorToken.kind===ts.SyntaxKind.EqualsToken&&node.left.getText(method.sf).includes('memoryStorage['))wroteStorage=true;
     });
-    if(path.length>1&&usedStorage&&pushed&&wroteStorage){paths.push(path);return;}
+    if(path.length>1&&usedStorage&&mutatedList&&wroteStorage){paths.push(path);return;}
     for(const edge of connectedCalls(method)){
       const next=classes.get(edge.className)?.get(edge.method);
       if(next)search(next,[...path,{...edge,methodNode:next}],seen,depth+1);
@@ -132,7 +135,7 @@ export function verifyEventFlow(root,eventName='newTodo'){
     steps:[
       {className:bindingOwner,method:'bindCallback',...def(binding),phase:'listener_setup',listener_site:listener},
       {className:reg.controllerClass,method:methodName,...def(ctl),phase:'event_handler',registered_at:reg.registration},
-      {className:step2.className,method:step2.method,...def(step2.methodNode),phase:'model_create',called_at:step2.ref},
+      {className:step2.className,method:step2.method,...def(step2.methodNode),phase:'model_operation',called_at:step2.ref},
       {className:step3.className,method:step3.method,...def(step3.methodNode),phase:'storage_mutation',called_at:step3.ref}
     ],
     conditions:{listener_registration:true,constructor_wiring:true,controller_call:true,model_call:true,store_memory_mutation:true},
@@ -150,7 +153,7 @@ export function validatedExplanation(flow){
       ' registra o evento '+flow.event+'; quando ele ocorre, '+
       ctl.className+'.'+ctl.method+' chama '+mdl.className+'.'+mdl.method+
       ', que chama '+store.className+'.'+store.method+
-      ' para gravar os dados em memoria. Trata-se de encadeamento estatico, nao de uma execucao observada.',
+      ' para atualizar o armazenamento em memoria. Trata-se de encadeamento estatico, nao de uma execucao observada.',
     sources:flow.steps.map(x=>x.file+':'+x.line)
   };
 }
