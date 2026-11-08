@@ -45,7 +45,8 @@ export function auditReaImports(astGraph, reaEvidence) {
       line !== null
     ) {
       const literal = literalRequire(edge.properties?.expression);
-      if (literal !== null) reaLiteralCandidates.add(site(filename, line, literal));
+      if (literal !== null)
+        reaLiteralCandidates.add(site(filename, line, literal));
     }
     if (!reaSites.has(key)) {
       reaSites.set(key, {
@@ -59,7 +60,9 @@ export function auditReaImports(astGraph, reaEvidence) {
     }
   }
   const astUncovered = [...astSites].filter((k) => !reaSites.has(k));
-  const literalCandidates = astUncovered.filter((k) => reaLiteralCandidates.has(k));
+  const literalCandidates = astUncovered.filter((k) =>
+    reaLiteralCandidates.has(k),
+  );
   const noCandidate = astUncovered.filter((k) => !reaLiteralCandidates.has(k));
   const extras = [...reaSites]
     .filter(([k]) => !astSites.has(k))
@@ -109,12 +112,15 @@ export function auditReaImports(astGraph, reaEvidence) {
     ast_sites_absent_from_rea: astUncovered.length,
     // Keep the original strict field for compatibility, but distinguish
     // null specifier vs no REA source-site observation at all.
-    ast_sites_with_literal_require_but_null_rea_specifier: literalCandidates.length,
+    ast_sites_with_literal_require_but_null_rea_specifier:
+      literalCandidates.length,
     ast_sites_without_even_literal_rea_candidate: noCandidate.length,
-    literal_require_without_specifier_examples: literalCandidates.slice(0, 25).map((siteId) => {
-      const [file, line, specifier] = JSON.parse(siteId);
-      return { file, line, specifier };
-    }),
+    literal_require_without_specifier_examples: literalCandidates
+      .slice(0, 25)
+      .map((siteId) => {
+        const [file, line, specifier] = JSON.parse(siteId);
+        return { file, line, specifier };
+      }),
     no_rea_candidate_examples: noCandidate.slice(0, 25).map((siteId) => {
       const [file, line, specifier] = JSON.parse(siteId);
       return { file, line, specifier };
@@ -125,8 +131,7 @@ export function auditReaImports(astGraph, reaEvidence) {
     }),
     rea_additional_sites: extras.length,
     rea_additional_sites_unreconciled_with_ast: unreconciledExtras.length,
-    rea_nonrequire_calls_tagged_as_imports:
-      nonRequireCallsTaggedImports.length,
+    rea_nonrequire_calls_tagged_as_imports: nonRequireCallsTaggedImports.length,
     rea_dynamic_require_candidates_without_literal_specifier:
       dynamicRequireCandidates.length,
     nonrequire_call_examples: nonRequireCallsTaggedImports

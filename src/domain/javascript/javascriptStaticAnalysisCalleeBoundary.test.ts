@@ -125,7 +125,8 @@ it("does not promote exhausted alias selectors to module imports", () => {
 });
 
 it("keeps real literal require sources after exhausting unrelated selector work", () => {
-  const source = aliasSelectionBudgetSource() +
+  const source =
+    aliasSelectionBudgetSource() +
     "\nrequire('./actual-dependency.cjs');\n" +
     "const node={status(){}}; node.status({text:'ready'});";
   const analysis = analyzeJavaScriptStaticSource(source);
