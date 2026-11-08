@@ -711,22 +711,14 @@ export const semanticRequireCallAt = (
   state: JavaScriptSemanticAnalysisState,
   factoryBindingIds: ReadonlySet<string>,
 ): JavaScriptRequireCallFact | undefined => {
-  const callee = unwrapJavaScriptExpression(node.callee).node;
-  // A .call/.apply invocation can retain a possible captured require delegate
-  // even when exact alias ownership is unresolved. Ordinary method calls,
-  // however, must not become imports merely because alias search exhausted.
-  const indirectInvocation =
-    (t.isMemberExpression(callee) || t.isOptionalMemberExpression(callee)) &&
-    ["call", "apply"].includes(
-      semanticStaticPropertyKey(callee.property, callee.computed) ?? "",
-    );
-  if (semanticModuleRequireCallAt(node, state, indirectInvocation))
+  if (semanticModuleRequireCallAt(node, state))
     return {
       operation: "load",
       loader: "unknown",
       arguments: undefined,
       sourceRelative: false,
     };
+  const callee = unwrapJavaScriptExpression(node.callee).node;
   if (
     (t.isMemberExpression(callee) || t.isOptionalMemberExpression(callee)) &&
     ["call", "apply"].includes(
@@ -1099,7 +1091,7 @@ const hasCommonJsModuleSource = (
       contexts.set(value, byMode);
     }
     const path = selections.normalize(context, next.path);
-    if (selections.limited) return includeUnknown;
+    if (selections.limited) return true;
     const pathKey = JSON.stringify(path);
     let identity = context.identities.get(pathKey);
     if (identity === undefined) {
@@ -1110,7 +1102,7 @@ const hasCommonJsModuleSource = (
         ++additionalStates > SEMANTIC_ALIAS_SELECTION_LIMIT
       ) {
         state.valueResourceLimits.add("alias-selections");
-        return includeUnknown;
+        return true;
       }
       identity = {};
       context.identities.set(pathKey, identity);
