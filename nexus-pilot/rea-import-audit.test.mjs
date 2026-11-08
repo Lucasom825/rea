@@ -67,6 +67,39 @@ test("unseen explicit dependency triggers investigation", () => {
   assert.equal(s.status, "INCONCLUSIVE_REA_AST_DISAGREEMENT");
   assert.equal(s.additional_unmatched_explicit_specifier, 1);
 });
+test("literal require in REA with null specifier remains inconclusive but is not fully absent", () => {
+  const edge = e("a.js", 1, null, "require");
+  edge.properties.kind = "require";
+  edge.properties.expression = "require('./b.js')";
+  const s = run([edge, e("a.js", 2, "some-pkg")]);
+  assert.equal(s.rea_exact_ast_site_matches, 1);
+  assert.equal(s.ast_sites_absent_from_rea, 1);
+  assert.equal(s.ast_sites_with_literal_require_but_null_rea_specifier, 1);
+  assert.equal(s.ast_sites_without_even_literal_rea_candidate, 0);
+  assert.equal(s.rea_additional_sites_unreconciled_with_ast, 0);
+  assert.equal(s.status, "INCONCLUSIVE_REA_AST_DISAGREEMENT");
+});
+test("method calls and dynamic requires do not count as literal import matches", () => {
+  const call = e("a.js", 1, null, "require");
+  call.properties.kind = "require";
+  call.properties.expression = "self.node.status(value)";
+  const dyn = e("a.js", 3, null, "require");
+  dyn.properties.kind = "require";
+  dyn.properties.expression = "require(variable)";
+  const s = run([call, dyn, e("a.js", 2, "some-pkg")]);
+  assert.equal(s.ast_sites_with_literal_require_but_null_rea_specifier, 0);
+  assert.equal(s.ast_sites_without_even_literal_rea_candidate, 1);
+  assert.equal(s.rea_additional_sites_unreconciled_with_ast, 2);
+  assert.equal(s.status, "INCONCLUSIVE_REA_AST_DISAGREEMENT");
+});
+test("wrong require string at same line is never treated as a match", () => {
+  const edge = e("a.js", 1, null, "require");
+  edge.properties.kind = "require";
+  edge.properties.expression = "require('not-the-ast-import')";
+  const s = run([edge, e("a.js", 2, "some-pkg")]);
+  assert.equal(s.ast_sites_with_literal_require_but_null_rea_specifier, 0);
+  assert.equal(s.ast_sites_without_even_literal_rea_candidate, 1);
+});
 test("source import missing from REA is INCONCLUSIVE", () => {
   const s = run([e("a.js", 1, "./b.js")]);
   assert.equal(s.ast_sites_absent_from_rea, 1);
