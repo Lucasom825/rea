@@ -10,6 +10,8 @@ on:
       - nexus-pilot/local-llm-agent.mjs
       - nexus-pilot/verified-flow.mjs
       - nexus-pilot/verified-flow.test.mjs
+      - nexus-pilot/answer-policy.mjs
+      - nexus-pilot/answer-policy.test.mjs
   workflow_dispatch:
 
 permissions:
@@ -77,12 +79,14 @@ jobs:
           cp nexus-pilot/local-llm-agent.mjs "$RUNNER_TEMP/nexus-llm/agent.mjs"
           cp nexus-pilot/verified-flow.mjs "$RUNNER_TEMP/nexus-llm/verified-flow.mjs"
           cp nexus-pilot/verified-flow.test.mjs "$RUNNER_TEMP/nexus-llm/verified-flow.test.mjs"
+          cp nexus-pilot/answer-policy.mjs "$RUNNER_TEMP/nexus-llm/answer-policy.mjs"
+          cp nexus-pilot/answer-policy.test.mjs "$RUNNER_TEMP/nexus-llm/answer-policy.test.mjs"
           cd "$RUNNER_TEMP/nexus-llm"
           npm init -y >/dev/null
           npm install --no-audit --no-fund --save-exact @huggingface/transformers@4.3.2 typescript@5.9.3
           node --check agent.mjs
           node --check verified-flow.mjs
-          REA_TEST_TARGET="$TARGET_DIR" node --test verified-flow.test.mjs
+          REA_TEST_TARGET="$TARGET_DIR" node --test verified-flow.test.mjs answer-policy.test.mjs
           echo 'NEXUS_STATIC_VERIFIER_TESTS=PASS'
           echo 'NEXUS_LOCAL_MODEL_LIBRARY_READY=true'
       - name: Run Qwen CPU model against live REA MCP session and source snippets
