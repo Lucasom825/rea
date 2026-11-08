@@ -1112,7 +1112,7 @@ const hasCommonJsModuleSource = (
       contexts.set(value, byMode);
     }
     const path = selections.normalize(context, next.path);
-    if (selections.limited) return true;
+    if (selections.limited) return includeUnknown;
     const pathKey = JSON.stringify(path);
     let identity = context.identities.get(pathKey);
     if (identity === undefined) {
@@ -1123,7 +1123,7 @@ const hasCommonJsModuleSource = (
         ++additionalStates > SEMANTIC_ALIAS_SELECTION_LIMIT
       ) {
         state.valueResourceLimits.add("alias-selections");
-        return true;
+        return includeUnknown;
       }
       identity = {};
       context.identities.set(pathKey, identity);
