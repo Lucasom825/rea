@@ -166,9 +166,15 @@ try {
   const choiceResult=await generator(choicePrompt,{max_new_tokens:32,do_sample:false,return_full_text:false});
   const rawChoice=outputText(choiceResult);
   report.observations.model_raw_tool_choice=rawChoice.slice(0,350);
-  const candidates=[...allowed].filter(name=>new RegExp('\\b'+name+'\\b').test(rawChoice));
-  if(candidates.length!==1)throw new Error('Model failed unique tool selection: '+rawChoice.slice(0,140));
-  const chosen=candidates[0];
+  const answer=rawChoice.trim();
+  const exact=allowed.has(answer)?answer:null;
+  const option=/^\(?([AB])\)?[.]?$/i.exec(answer);
+  const mapped=option?(option[1].toUpperCase()==='A'?'analyze_javascript_application':'inspect_analysis_view'):null;
+  const singleName=[...allowed].filter(name=>new RegExp('\\b'+name+'\\b').test(answer));
+  const chosen=exact||mapped||(singleName.length===1?singleName[0]:null);
+  report.observations.model_exact_tool_format=Boolean(exact);
+  report.observations.model_choice_resolution=exact?'EXACT_TOOL_NAME':mapped?'LABELED_OPTION':chosen?'NAMED_IN_TEXT':'UNRESOLVED';
+  if(!chosen)throw new Error('Model selection ambiguous: '+rawChoice.slice(0,140));
   report.observations.model_selected_tool=chosen;
   if(chosen!=='inspect_analysis_view')throw new Error('Model selected wrong tool '+chosen);
   stage('MODEL_SELECTED_CORRECT_MCP_TOOL');
