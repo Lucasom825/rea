@@ -46,3 +46,24 @@ Fonte primária: https://github.com/tastejs/todomvc/tree/ff43b02e59dfa604386bb38
 - Próxima prova útil: generalizar extração para **mais dois fluxos independentes** (remoção e conclusão de tarefas, por exemplo), com situações negativas e versão de modelo mais competente. Testar somente depois uma integração permanente por ambiente e credenciais autorizadas.
 
 **Veredito executivo:** a operação segura de análise do caso de demonstração está validada; a confiabilidade do modelo em livre geração continua insuficiente, mas agora **não compromete o resultado entregue**.
+
+
+## Complemento 005-B — mais dois fluxos independentes (08/11/2026)
+
+Após a aprovação do fluxo de criação, o verificador foi ampliado para os registros de evento DOM implementados com `$delegate`, e para remoção de itens em armazenamento, além da criação original com `$on`. O objetivo foi verificar alguma generalização dentro do **mesmo aplicativo público**, sem afirmar suporte universal a JavaScript.
+
+**CI final aprovado:** https://github.com/Lucasom825/rea/actions/runs/42511257954 — `success` em todas as etapas.
+
+Agora os testes verificam **13 cenários**: oito testes independentes de verificação estrutural e mutações + cinco testes contra alucinações. Os três fluxos estáticos identificados são:
+
+| Evento do TodoMVC | Cadeia de referência derivada do AST |
+| --- | --- |
+| `newTodo` | `View.bindCallback → Controller.addItem → Model.create → Store.save` |
+| `itemRemove` | `View.bindCallback → Controller.removeItem → Model.remove → Store.remove` |
+| `itemToggle` | `View.bindCallback → Controller.toggleComplete → Model.update → Store.save` |
+
+Além dos testes negativos anteriores, foi testada a remoção de `todos.splice` na implementação de exclusão; o verificador recusou confirmar a cadeia quando a mutação não podia ser provada.
+
+**Diferença entre componentes:** o verificador AST passou nos três fluxos; o modelo Qwen foi executado somente com a pergunta `newTodo`, selecionou a ferramenta MCP correta e obteve 7/7 módulos, mas **sua resposta livre continuou reprovada** devido a trechos adicionais não sustentados. O resultado entregue foi o fallback AST com referências, `PASS_VERIFIED_DELIVERY_LLM_REJECTED_FALLBACK`, duração total do cliente 84.349 ms. Isso reforça o valor do controle de qualidade, NÃO comprova melhora do raciocínio do modelo.
+
+Os resultados permanecem limitados ao padrão implementado pelo TodoMVC. A lógica ainda não foi ensaiada com frameworks/bancos/serviços diferentes, nem foi integrada ao NEXUS produtivo ou à conta ChatGPT como ferramenta permanente. Versão oficial Memória Viva não foi alterada.
