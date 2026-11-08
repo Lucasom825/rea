@@ -92,7 +92,10 @@ test("method calls and dynamic requires do not count as literal import matches",
   assert.equal(s.rea_additional_sites_unreconciled_with_ast, 2);
   assert.equal(s.rea_nonrequire_calls_tagged_as_imports, 1);
   assert.equal(s.rea_dynamic_require_candidates_without_literal_specifier, 1);
-  assert.equal(s.nonrequire_call_examples[0].expression, "self.node.status(value)");
+  assert.equal(
+    s.nonrequire_call_examples[0].expression,
+    "self.node.status(value)",
+  );
   assert.equal(s.dynamic_require_examples[0].expression, "require(variable)");
   assert.equal(s.status, "INCONCLUSIVE_REA_AST_DISAGREEMENT");
 });
