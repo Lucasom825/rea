@@ -33,7 +33,7 @@ permissions:
 jobs:
   verified-static-analysis:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 35
     env:
       npm_config_audit: "false"
       npm_config_fund: "false"
@@ -169,14 +169,21 @@ jobs:
           console.log('AST_UNIQUE_INTERNAL_MODULE_EDGES='+graph.statistics?.unique_internal_pairs);
           if(graph.status!=='STATIC_IMPORTS_VERIFIED')console.log('AST_STATUS='+graph.status);
           NODE
-      - name: Analyze pinned public source with official REA 6.8.0
+      - name: Install and build REA engine from this reviewed GitHub revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm run build:cached
+          test -s dist/cli-runtime/cli.js
+      - name: Analyze pinned public source with locally built REA engine
         env:
           SOURCE_ROOT: ${{ steps.scope.outputs.scope_dir }}
         shell: bash
         run: |
           set -euo pipefail
-          cd "$RUNNER_TEMP"
-          timeout 440s npx --yes rea-agents@6.8.0 analyze-javascript-application "$SOURCE_ROOT" --json > "$RUNNER_TEMP/rea-results/REA_Evidence.json"
+          cd "$GITHUB_WORKSPACE"
+          timeout 440s node scripts/rea.mjs analyze-javascript-application "$SOURCE_ROOT" --json > "$RUNNER_TEMP/rea-results/REA_Evidence.json"
           test -s "$RUNNER_TEMP/rea-results/REA_Evidence.json"
           test "$(wc -c < "$RUNNER_TEMP/rea-results/REA_Evidence.json")" -le 90000000
           echo 'REA_ANALYSIS_COMMAND_FINISHED=true'
