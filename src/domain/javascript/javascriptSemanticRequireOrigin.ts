@@ -724,16 +724,49 @@ export const semanticRequireCallAt = (
   const memberName = isMemberCall
     ? semanticStaticPropertyKey(callee.property, callee.computed)
     : undefined;
+  // Opaque, unrelated calls are not enough to posit a module loader.
+  // Retain indirect identifiers only when the provenance search has a
+  // plausible require source, not merely a depleted alias-selection budget.
+  const plausibleIndirectIdentifier =
+    t.isIdentifier(callee) &&
+    selectedRequireSourcesAt(callee, node, state, factoryBindingIds) !==
+      undefined;
+  // Node's CJS module.require can also be captured through a comma
+  // expression: const load = (0, module.require); load('path').
+  // The last expression matters: (module.require, () => {}) is local.
+  const capturedModuleDelegate =
+    t.isIdentifier(callee) &&
+    resolveSemanticBindingState(state, callee, callee.name)?.initializers.some(
+      ({ node: initializer }) => {
+        const expression = unwrapJavaScriptExpression(initializer).node;
+        const value = t.isSequenceExpression(expression)
+          ? expression.expressions.at(-1)
+          : expression;
+        return (
+          value !== undefined &&
+          (t.isMemberExpression(value) || t.isOptionalMemberExpression(value)) &&
+          semanticStaticPropertyKey(value.property, value.computed) ===
+            "require" &&
+          isCommonJsModuleObject(value.object, state, false)
+        );
+      },
+    ) === true;
   const possibleIndirectLoader =
     !isDirectRequire &&
-    (t.isIdentifier(callee) ||
+    (plausibleIndirectIdentifier || capturedModuleDelegate ||
       (isMemberCall &&
         (memberName === "require" ||
           memberName === "resolve" ||
           memberName === "call" ||
           memberName === "apply" ||
           memberName === "bind")));
-  if (semanticModuleRequireCallAt(node, state, possibleIndirectLoader))
+  // Methods unrelated to module-loading are not aliases of require just
+  // because their receiver has imprecise abstract value ownership.
+  const plausibleLoaderShape = isDirectRequire || possibleIndirectLoader;
+  if (
+    plausibleLoaderShape &&
+    semanticModuleRequireCallAt(node, state, possibleIndirectLoader)
+  )
     return {
       operation: "load",
       loader: "unknown",
@@ -827,12 +860,11 @@ export const semanticRequireCallAt = (
       );
       if (loader !== "local" && loader !== "create-require")
         return ["require-loader", loader, "relative"];
-      const selected = selectedRequireSourcesAt(
-        callee,
-        node,
-        state,
-        factoryBindingIds,
-      );
+      // Opaque ordinary methods must not become require-loader solely
+      // because a broad alias expansion reached its resource limit.
+      const selected = plausibleLoaderShape
+        ? selectedRequireSourcesAt(callee, node, state, factoryBindingIds)
+        : undefined;
       if (selected !== undefined)
         return [
           "require-loader",
