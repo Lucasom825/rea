@@ -1,0 +1,15 @@
+name: REA exact source - full monorepo qualification 035
+on:
+  push:
+    branches:
+      - nexus/rea-full-qualification-035-20261109
+permissions:
+  contents: read
+  actions: read
+jobs:
+  qualification:
+    name: Validate REA PR 3 full native CI
+    uses: ./.github/workflows/ci.yml
+    with:
+      source_sha: ${{ github.sha }}
+      remote_cache_write: false
