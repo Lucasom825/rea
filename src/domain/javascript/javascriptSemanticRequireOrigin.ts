@@ -724,16 +724,29 @@ export const semanticRequireCallAt = (
   const memberName = isMemberCall
     ? semanticStaticPropertyKey(callee.property, callee.computed)
     : undefined;
+  // Opaque, unrelated calls are not enough to posit a module loader.
+  // Retain indirect identifiers only when the provenance search has a
+  // plausible require source, not merely a depleted alias-selection budget.
+  const plausibleIndirectIdentifier =
+    t.isIdentifier(callee) &&
+    selectedRequireSourcesAt(callee, node, state, factoryBindingIds) !==
+      undefined;
   const possibleIndirectLoader =
     !isDirectRequire &&
-    (t.isIdentifier(callee) ||
+    (plausibleIndirectIdentifier ||
       (isMemberCall &&
         (memberName === "require" ||
           memberName === "resolve" ||
           memberName === "call" ||
           memberName === "apply" ||
           memberName === "bind")));
-  if (semanticModuleRequireCallAt(node, state, possibleIndirectLoader))
+  // Methods unrelated to module-loading are not aliases of require just
+  // because their receiver has imprecise abstract value ownership.
+  const plausibleLoaderShape = isDirectRequire || possibleIndirectLoader;
+  if (
+    plausibleLoaderShape &&
+    semanticModuleRequireCallAt(node, state, possibleIndirectLoader)
+  )
     return {
       operation: "load",
       loader: "unknown",
