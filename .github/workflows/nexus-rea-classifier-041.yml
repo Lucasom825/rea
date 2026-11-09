@@ -1,0 +1,37 @@
+name: REA 041 — isolate full CI classification
+on:
+  push:
+    branches:
+      - nexus/rea-ci-classifier-041-20261109
+permissions:
+  contents: read
+jobs:
+  classify-direct:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      HUSKY: '0'
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5 / Node24
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5 / Node24
+        with:
+          node-version-file: .nvmrc
+      - name: Verify checkout corresponds to this push
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - name: Run full-scope classification in a direct runner
+        env:
+          GITHUB_EVENT_NAME: push
+          HEAD_SHA: ${{ github.sha }}
+          CI_FULL: 'true'
+        run: node scripts/ci/plan.mjs > /tmp/rea-ci-plan.json
+      - name: Assert full tier and every canonical scope
+        run: |
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            import { CI_FLAGS } from "./scripts/ci/scopes.mjs";
+            const plan=JSON.parse(readFileSync("/tmp/rea-ci-plan.json","utf8"));
+            if(plan.tier!=="full" || CI_FLAGS.some(key=>plan[key]!==true)) process.exit(1);
+            console.log(JSON.stringify({tier:plan.tier,scope_count:CI_FLAGS.length,all_selected:true}));
+          '
