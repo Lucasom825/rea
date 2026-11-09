@@ -761,7 +761,8 @@ export const semanticRequireCallAt = (
     isMemberCall &&
     (isCommonJsRequireDelegate(callee, state, false, node) ||
       (selectedMemberLoader !== undefined &&
-        selectedMemberLoader.loader !== "local"));
+        selectedMemberLoader.loader !== "local" &&
+        selectedMemberLoader.loader !== "unknown"));
   const possibleIndirectLoader =
     !isDirectRequire &&
     (plausibleIndirectIdentifier ||
