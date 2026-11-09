@@ -214,7 +214,7 @@ describe("Vitest project configuration", () => {
         },
       );
       expect(JSON.parse(result.stdout)).toEqual({
-        execArgv: ["--max-old-space-size=512"],
+        execArgv: ["--max-old-space-size=1024"],
         timeout,
         lines,
       });
