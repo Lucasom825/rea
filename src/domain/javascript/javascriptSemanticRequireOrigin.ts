@@ -717,8 +717,7 @@ export const semanticRequireCallAt = (
   // module.require delegate" search can otherwise turn *all* direct require
   // sites into unknown loaders, even when their literal is available.
   // Keep the conservative unknown path for indirect/aliased loader calls.
-  const isDirectRequire =
-    t.isIdentifier(callee) && callee.name === "require";
+  const isDirectRequire = t.isIdentifier(callee) && callee.name === "require";
   const isMemberCall =
     t.isMemberExpression(callee) || t.isOptionalMemberExpression(callee);
   const memberName = isMemberCall
@@ -744,7 +743,8 @@ export const semanticRequireCallAt = (
           : expression;
         return (
           value !== undefined &&
-          (t.isMemberExpression(value) || t.isOptionalMemberExpression(value)) &&
+          (t.isMemberExpression(value) ||
+            t.isOptionalMemberExpression(value)) &&
           semanticStaticPropertyKey(value.property, value.computed) ===
             "require" &&
           isCommonJsModuleObject(value.object, state, false)
@@ -753,7 +753,8 @@ export const semanticRequireCallAt = (
     ) === true;
   const possibleIndirectLoader =
     !isDirectRequire &&
-    (plausibleIndirectIdentifier || capturedModuleDelegate ||
+    (plausibleIndirectIdentifier ||
+      capturedModuleDelegate ||
       (isMemberCall &&
         (memberName === "require" ||
           memberName === "resolve" ||
