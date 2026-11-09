@@ -35,7 +35,8 @@ Para o preset `public`, informar repositório GitHub público `dono/repositorio`
 
 - Solicitação Axios feita por ChatGPT: https://github.com/Lucasom825/rea/actions/runs/42700722919 — SUCCESS. 72 arquivos JS, 199/199 locais de importação AST, sete ocorrências adicionais com ressalvas, relatório publicado.
 - Solicitação Node-RED feita por ChatGPT alterando somente `active.json`: https://github.com/Lucasom825/rea/actions/runs/42701007533 — SUCCESS. 47 arquivos JS, 177/177 locais, quatro imports dinâmicos incertos, relatório publicado.
-- Reprodução com texto de relatório legível pelo conector: https://github.com/Lucasom825/rea/actions/runs/42701365252 — resultado depende de conclusão e verificação, não presumir sucesso.
+- Reprodução com relatório português legível diretamente nos logs pelo conector: https://github.com/Lucasom825/rea/actions/runs/42701365252 — SUCCESS; marcadores NEXUS_REA_REPORT_BEGIN/END presentes, relatório real lido no ChatGPT. Node-RED: 47 arquivos, 177/177 importações estáticas, quatro requires dinâmicos e 23.023 incógnitas semânticas; código-alvo não executado.
+- Prova final da ponte com documento de operação presente e verificação da origem compilada: https://github.com/Lucasom825/rea/actions/runs/42701587897 — SUCCESS, relatório público recuperável em texto, artefato rea-nexus-request-output criado.
 - Homologação original: https://github.com/Lucasom825/rea/actions/runs/42682294094 — SUCCESS na tentativa 2; PR #3 integrado e main validada.
 
 ## Segurança, limites e critérios de aceite
