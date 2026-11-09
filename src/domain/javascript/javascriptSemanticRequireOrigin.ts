@@ -751,10 +751,22 @@ export const semanticRequireCallAt = (
         );
       },
     ) === true;
+  // A loader may be retained in an object or array under an ordinary
+  // property name (for example, holder.load or holder[0]). Inspect provenance
+  // before excluding it; a property name by itself never proves a loader.
+  const selectedMemberLoader = isMemberCall
+    ? selectedRequireSourcesAt(callee, node, state, factoryBindingIds)
+    : undefined;
+  const plausibleCapturedMember =
+    isMemberCall &&
+    (isCommonJsRequireDelegate(callee, state, false, node) ||
+      (selectedMemberLoader !== undefined &&
+        selectedMemberLoader.loader !== "local"));
   const possibleIndirectLoader =
     !isDirectRequire &&
     (plausibleIndirectIdentifier ||
       capturedModuleDelegate ||
+      plausibleCapturedMember ||
       (isMemberCall &&
         (memberName === "require" ||
           memberName === "resolve" ||
