@@ -124,6 +124,27 @@ it("does not promote exhausted alias selectors to module imports", () => {
   );
 });
 
+it("does not turn unrelated local calls into module imports when aliases saturate", () => {
+  const source =
+    aliasSelectionBudgetSource() +
+    "\nfunction flushUpload() {}\nflushUpload();" +
+    "\nconst project = { loadRemotes() {} }; project.loadRemotes();" +
+    "\nclass Request {}\nnew Request('local');" +
+    "\nrequire('./actual-dependency.cjs');";
+  const analysis = analyzeJavaScriptStaticSource(source);
+  expect(analysis.parse_error_count).toBe(0);
+  expect(analysis.limitations).toContainEqual(
+    expect.stringMatching(/Alias selection expansion.*512/u),
+  );
+  expect(analysis.references).toEqual([
+    expect.objectContaining({ kind: "require", specifier: null }),
+    expect.objectContaining({
+      kind: "require",
+      specifier: "./actual-dependency.cjs",
+    }),
+  ]);
+});
+
 it("keeps real literal require sources after exhausting unrelated selector work", () => {
   const source =
     aliasSelectionBudgetSource() +
