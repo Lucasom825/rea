@@ -731,9 +731,29 @@ export const semanticRequireCallAt = (
     t.isIdentifier(callee) &&
     selectedRequireSourcesAt(callee, node, state, factoryBindingIds) !==
       undefined;
+  // Node's CJS module.require can also be captured through a comma
+  // expression: const load = (0, module.require); load('path').
+  // The last expression matters: (module.require, () => {}) is local.
+  const capturedModuleDelegate =
+    t.isIdentifier(callee) &&
+    resolveSemanticBindingState(state, callee, callee.name)?.initializers.some(
+      ({ node: initializer }) => {
+        const expression = unwrapJavaScriptExpression(initializer).node;
+        const value = t.isSequenceExpression(expression)
+          ? expression.expressions.at(-1)
+          : expression;
+        return (
+          value !== undefined &&
+          (t.isMemberExpression(value) || t.isOptionalMemberExpression(value)) &&
+          semanticStaticPropertyKey(value.property, value.computed) ===
+            "require" &&
+          isCommonJsModuleObject(value.object, state, false)
+        );
+      },
+    ) === true;
   const possibleIndirectLoader =
     !isDirectRequire &&
-    (plausibleIndirectIdentifier ||
+    (plausibleIndirectIdentifier || capturedModuleDelegate ||
       (isMemberCall &&
         (memberName === "require" ||
           memberName === "resolve" ||
