@@ -224,6 +224,22 @@ jobs:
           node rea-import-audit.mjs "$RUNNER_TEMP/rea-results/source_graph.json" "$RUNNER_TEMP/rea-results/REA_Evidence.json" "$RUNNER_TEMP/rea-results/import_audit.json" || audit_exit=$?
           if [ "${audit_exit:-0}" -gt 2 ]; then exit "$audit_exit"; fi
           node make-report.mjs "$TARGET_FILE" "$RUNNER_TEMP/rea-results/source_graph.json" "$RUNNER_TEMP/rea-results/REA_Evidence.json" "$RUNNER_TEMP/rea-results/import_audit.json" "$RUNNER_TEMP/rea-results"
+      - name: Expose bounded public evidence report to connected Nexus reader
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';
+          import {join} from 'node:path';
+          const path=join(process.env.RUNNER_TEMP,'rea-results','report.pt-BR.md');
+          const content=readFileSync(path,'utf8');
+          if(!content.startsWith('# REA Toolkit'))throw new Error('UNRECOGNIZED_PUBLIC_REPORT');
+          const limit=18000;
+          console.log('NEXUS_REA_REPORT_BEGIN');
+          console.log(content.slice(0,limit));
+          if(content.length>limit)console.log('NEXUS_REA_REPORT_TRUNCATED=true');
+          console.log('NEXUS_REA_REPORT_END');
+          NODE
       - name: Retain reproducible results and raw REA Evidence (public source only)
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
