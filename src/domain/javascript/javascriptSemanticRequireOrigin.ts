@@ -747,7 +747,9 @@ export const semanticRequireCallAt = (
           (t.isMemberExpression(value) || t.isOptionalMemberExpression(value)) &&
           semanticStaticPropertyKey(value.property, value.computed) ===
             "require" &&
-          isCommonJsModuleObject(value.object, state, false)
+          // Preserve a captured delegate when selector expansion is bounded.
+          // This is a require-named member, never a generic method call.
+          isCommonJsModuleObject(value.object, state, true)
         );
       },
     ) === true;
