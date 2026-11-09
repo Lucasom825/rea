@@ -40,13 +40,30 @@ const audit = {
 };
 const run = (over = {}) =>
   buildReport({ target, ast, evidence, audit, ...over });
-test("independent full structural source report can be approved", () => {
+void test("independent full structural source report can be approved", () => {
   const x = run();
   assert.equal(x.report.status, "COBERTURA_ESTRUTURAL_CONFIRMADA");
   assert.equal(x.report.checks.real_mcp_llm_agent_connected, false);
   assert.match(x.markdown, /relatório verificável/);
 });
-test("wrong REA parse count is inconclusive", () => {
+void test("AST dependency hubs count distinct importing modules without inventing behavior", () => {
+  const graph = {
+    ...ast,
+    edges: [
+      { kind: "internal", from: "a.js", target: "b.js" },
+      { kind: "internal", from: "a.js", target: "b.js" },
+      { kind: "internal", from: "c.js", target: "b.js" },
+      { kind: "external", from: "a.js", specifier: "node:fs" },
+    ],
+  };
+  const x = run({ ast: graph });
+  assert.deepEqual(x.report.structural_hubs, [
+    { module: "b.js", direct_dependents: 2 },
+  ]);
+  assert.match(x.markdown, /Mapa de dependências internas/);
+});
+
+void test("wrong REA parse count is inconclusive", () => {
   const p = {
     ...evidence,
     normalized_result: {
@@ -56,11 +73,11 @@ test("wrong REA parse count is inconclusive", () => {
   };
   assert.equal(run({ evidence: p }).report.status, "INCONCLUSIVO");
 });
-test("REA and source disagreement cannot be approved", () => {
+void test("REA and source disagreement cannot be approved", () => {
   const b = { ...audit, status: "INCONCLUSIVE_REA_AST_DISAGREEMENT" };
   assert.equal(run({ audit: b }).report.status, "INCONCLUSIVO");
 });
-test("unknown dynamic imports force explicit qualification", () => {
+void test("unknown dynamic imports force explicit qualification", () => {
   const changed = {
     ...ast,
     statistics: { ...ast.statistics, unknown_dynamic_imports: 1 },
@@ -73,12 +90,37 @@ test("unknown dynamic imports force explicit qualification", () => {
     ),
   );
 });
-test("no runtime execution is claimed for arbitrary targets", () => {
+void test("null-specifier literal require remains technically inconclusive and disclosed", () => {
+  const pending = {
+    ...audit,
+    status: "INCONCLUSIVE_REA_AST_DISAGREEMENT",
+    ast_sites_absent_from_rea: 1,
+    ast_sites_with_literal_require_but_null_rea_specifier: 1,
+    ast_sites_without_even_literal_rea_candidate: 0,
+    rea_additional_sites_unreconciled_with_ast: 0,
+    rea_nonrequire_calls_tagged_as_imports: 3,
+    rea_dynamic_require_candidates_without_literal_specifier: 1,
+  };
+  const x = run({ audit: pending });
+  assert.equal(x.report.status, "INCONCLUSIVO");
+  assert.equal(x.report.checks.literal_require_without_structured_specifier, 1);
+  assert.equal(x.report.checks.no_literal_rea_candidate, 0);
+  assert.equal(x.report.checks.method_calls_misclassified_as_imports, 3);
+  assert.equal(x.report.checks.dynamic_require_without_literal_specifier, 1);
+  assert.match(x.markdown, /Chamadas comuns de métodos/);
+  assert.match(x.markdown, /sem specifier estruturado/);
+  assert.ok(
+    x.report.remaining_uncertainties.includes(
+      "REA_LITERAL_REQUIRES_WITHOUT_NORMALIZED_SPECIFIER",
+    ),
+  );
+});
+void test("no runtime execution is claimed for arbitrary targets", () => {
   const x = run({ behaviorPass: true });
   assert.equal(x.report.checks.behavior_test_verified, false);
   assert.match(x.markdown, /não executado/);
 });
-test("only pinned Axios can claim the restricted behavior demo", () => {
+void test("only pinned Axios can claim the restricted behavior demo", () => {
   const x = run({
     target: { ...target, preset: "axios", behavior_demo: "axios" },
     behaviorPass: true,
@@ -86,7 +128,7 @@ test("only pinned Axios can claim the restricted behavior demo", () => {
   assert.equal(x.report.checks.behavior_test_verified, true);
   assert.match(x.markdown, /12 verificações Axios/);
 });
-test("missing Evidence ID is explicit failure", () => {
+void test("missing Evidence ID is explicit failure", () => {
   const x = run({ evidence: { ...evidence, evidence_id: null } });
   assert.equal(x.report.status, "INCONCLUSIVO");
   assert.ok(x.report.hard_failures.includes("REA_EVIDENCE_ID_MISSING"));

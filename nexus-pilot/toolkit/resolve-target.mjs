@@ -17,6 +17,13 @@ const catalog = Object.freeze({
     label: "TodoMVC JavaScript ES6",
     behavior_demo: "none",
   },
+  nodered: {
+    repository: "node-red/node-red",
+    commit: "c694a9b04ccfdeff2923bf8419082595f4e27071",
+    scope: "packages/node_modules/@node-red/runtime/lib",
+    label: "Node-RED workflow runtime JavaScript 47 modules",
+    behavior_demo: "none",
+  },
 });
 function fail(message) {
   throw new Error("INVALID_INPUT: " + message);
@@ -27,8 +34,8 @@ export function resolveTarget({
   commit = "",
   scope = "",
 } = {}) {
-  if (!["axios", "todomvc", "public"].includes(preset))
-    fail("preset must be axios, todomvc or public");
+  if (!["axios", "todomvc", "nodered", "public"].includes(preset))
+    fail("preset must be axios, todomvc, nodered or public");
   const selected =
     preset === "public"
       ? {
@@ -55,7 +62,7 @@ export function resolveTarget({
     !subdir ||
     subdir.startsWith("/") ||
     subdir.includes("\\") ||
-    !/^[A-Za-z0-9_./-]+$/.test(subdir) ||
+    !/^[A-Za-z0-9_./@-]+$/.test(subdir) ||
     subdir.split("/").some((x) => x === "" || x === "..")
   )
     fail("invalid relative JavaScript directory");

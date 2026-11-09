@@ -64,8 +64,10 @@ const PROJECT_POLICIES = {
     // cleanup. Reuse the immutable graph; module mocks belong in process-global.
     // The shared source/contract graph also needs transient schema/help space.
     // Ordinary CI exhausted 384 MiB after earlier files warmed that graph.
-    // Use the measured 512 MiB budget with the same bounded concurrency.
-    execArgv: ["--max-old-space-size=512"],
+    // Full CI shard 6 exhausted the prior 512 MiB cap and crashed a worker
+    // while running managedMemberListOrdering. Keep maxWorkers=2 and give
+    // this bounded fork pool headroom for the warmed CLI schema graph.
+    execArgv: ["--max-old-space-size=1024"],
   },
   "process-boundary": {
     pool: "forks" as const,

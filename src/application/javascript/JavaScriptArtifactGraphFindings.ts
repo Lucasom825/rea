@@ -302,6 +302,12 @@ const addReference = (
   const target =
     resolved?.node ??
     unresolvedReferenceNode(context, input.file, input.value, input.coverage);
+  // Preserve the historical "imports" graph edge for a *possible* loader:
+  // consumers use it to locate uncertain, executable or indirect requires.
+  // It is NOT a confirmed dependency: mark it low-confidence explicitly.
+  // Only literal specifiers can be promoted by independent site auditing.
+  const unprovenLoader =
+    input.value.kind === "require" && input.value.specifier === null;
   addStaticInferenceEdge(context, {
     source,
     target,
@@ -314,9 +320,18 @@ const addReference = (
       isNativeAddonModuleTarget(resolved.path, resolved.file?.kind)
         ? "loads"
         : "imports",
+    ...(unprovenLoader
+      ? {
+          confidence: "low" as const,
+          limitations: [
+            "This call might be a module loader, but its loader identity and module specifier are unverified.",
+          ],
+        }
+      : {}),
     properties: {
       kind: input.value.kind,
       operation: input.value.operation,
+      ...(unprovenLoader ? { interpretation: "unproven-module-loader" } : {}),
       specifier: input.value.specifier,
       expression: input.value.expression,
       resolution_base_path: input.value.resolution_base_path ?? null,

@@ -21,7 +21,7 @@ function e(from, line, specifier, mode = "import") {
 function run(edges, astGraph = ast) {
   return auditReaImports(astGraph, { normalized_result: { graph: { edges } } });
 }
-test("two ground-truth import sites are matched", () => {
+void test("two ground-truth import sites are matched", () => {
   const s = run([e("a.js", 1, "./b.js"), e("a.js", 2, "some-pkg")]);
   assert.equal(
     s.status,
@@ -30,7 +30,7 @@ test("two ground-truth import sites are matched", () => {
   assert.equal(s.rea_exact_ast_site_matches, 2);
   assert.equal(s.rea_additional_sites, 0);
 });
-test("duplicate REA symbol edges do not inflate unique sites", () => {
+void test("duplicate REA symbol edges do not inflate unique sites", () => {
   const s = run([
     e("a.js", 1, "./b.js"),
     e("a.js", 1, "./b.js"),
@@ -40,7 +40,7 @@ test("duplicate REA symbol edges do not inflate unique sites", () => {
   assert.equal(s.rea_unique_import_sites, 2);
   assert.equal(s.rea_exact_ast_site_matches, 2);
 });
-test("REA import candidate without explicit specifier remains unverified", () => {
+void test("REA import candidate without explicit specifier remains unverified", () => {
   const s = run([
     e("a.js", 1, "./b.js"),
     e("a.js", 2, "some-pkg"),
@@ -49,7 +49,7 @@ test("REA import candidate without explicit specifier remains unverified", () =>
   assert.equal(s.additional_without_explicit_specifier, 1);
   assert.equal(s.does_not_measure_semantic_accuracy, true);
 });
-test("same specifier on another source line does not count as another validated import", () => {
+void test("same specifier on another source line does not count as another validated import", () => {
   const s = run([
     e("a.js", 1, "./b.js"),
     e("a.js", 2, "some-pkg"),
@@ -58,7 +58,7 @@ test("same specifier on another source line does not count as another validated 
   assert.equal(s.additional_same_module_specifier_other_line, 1);
   assert.equal(s.rea_exact_ast_site_matches, 2);
 });
-test("unseen explicit dependency triggers investigation", () => {
+void test("unseen explicit dependency triggers investigation", () => {
   const s = run([
     e("a.js", 1, "./b.js"),
     e("a.js", 2, "some-pkg"),
@@ -67,18 +67,58 @@ test("unseen explicit dependency triggers investigation", () => {
   assert.equal(s.status, "INCONCLUSIVE_REA_AST_DISAGREEMENT");
   assert.equal(s.additional_unmatched_explicit_specifier, 1);
 });
-test("source import missing from REA is INCONCLUSIVE", () => {
+void test("literal require in REA with null specifier remains inconclusive but is not fully absent", () => {
+  const edge = e("a.js", 1, null, "require");
+  edge.properties.kind = "require";
+  edge.properties.expression = "require('./b.js')";
+  const s = run([edge, e("a.js", 2, "some-pkg")]);
+  assert.equal(s.rea_exact_ast_site_matches, 1);
+  assert.equal(s.ast_sites_absent_from_rea, 1);
+  assert.equal(s.ast_sites_with_literal_require_but_null_rea_specifier, 1);
+  assert.equal(s.ast_sites_without_even_literal_rea_candidate, 0);
+  assert.equal(s.rea_additional_sites_unreconciled_with_ast, 0);
+  assert.equal(s.status, "INCONCLUSIVE_REA_AST_DISAGREEMENT");
+});
+void test("method calls and dynamic requires do not count as literal import matches", () => {
+  const call = e("a.js", 1, null, "require");
+  call.properties.kind = "require";
+  call.properties.expression = "self.node.status(value)";
+  const dyn = e("a.js", 3, null, "require");
+  dyn.properties.kind = "require";
+  dyn.properties.expression = "require(variable)";
+  const s = run([call, dyn, e("a.js", 2, "some-pkg")]);
+  assert.equal(s.ast_sites_with_literal_require_but_null_rea_specifier, 0);
+  assert.equal(s.ast_sites_without_even_literal_rea_candidate, 1);
+  assert.equal(s.rea_additional_sites_unreconciled_with_ast, 2);
+  assert.equal(s.rea_nonrequire_calls_tagged_as_imports, 1);
+  assert.equal(s.rea_dynamic_require_candidates_without_literal_specifier, 1);
+  assert.equal(
+    s.nonrequire_call_examples[0].expression,
+    "self.node.status(value)",
+  );
+  assert.equal(s.dynamic_require_examples[0].expression, "require(variable)");
+  assert.equal(s.status, "INCONCLUSIVE_REA_AST_DISAGREEMENT");
+});
+void test("wrong require string at same line is never treated as a match", () => {
+  const edge = e("a.js", 1, null, "require");
+  edge.properties.kind = "require";
+  edge.properties.expression = "require('not-the-ast-import')";
+  const s = run([edge, e("a.js", 2, "some-pkg")]);
+  assert.equal(s.ast_sites_with_literal_require_but_null_rea_specifier, 0);
+  assert.equal(s.ast_sites_without_even_literal_rea_candidate, 1);
+});
+void test("source import missing from REA is INCONCLUSIVE", () => {
   const s = run([e("a.js", 1, "./b.js")]);
   assert.equal(s.ast_sites_absent_from_rea, 1);
   assert.equal(s.status, "INCONCLUSIVE_REA_AST_DISAGREEMENT");
 });
-test("module identity is required to match a site", () => {
+void test("module identity is required to match a site", () => {
   const s = run([e("b.js", 1, "./b.js"), e("a.js", 2, "some-pkg")]);
   assert.equal(s.ast_sites_absent_from_rea, 1);
   assert.equal(s.status, "INCONCLUSIVE_REA_AST_DISAGREEMENT");
 });
 
-test("custom scope paths normalize from REA to nested source module identity", () => {
+void test("custom scope paths normalize from REA to nested source module identity", () => {
   const inventory = {
     modules: 2,
     inventory: [{ file: "nested/a.js" }, { file: "b.js" }],

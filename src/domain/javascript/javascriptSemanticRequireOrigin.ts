@@ -711,14 +711,94 @@ export const semanticRequireCallAt = (
   state: JavaScriptSemanticAnalysisState,
   factoryBindingIds: ReadonlySet<string>,
 ): JavaScriptRequireCallFact | undefined => {
-  if (semanticModuleRequireCallAt(node, state))
+  const callee = unwrapJavaScriptExpression(node.callee).node;
+  // Direct require(...) must be classified by its lexical CommonJS wrapper
+  // provenance. Under a depleted alias budget, the broader "possible
+  // module.require delegate" search can otherwise turn *all* direct require
+  // sites into unknown loaders, even when their literal is available.
+  // Keep the conservative unknown path for indirect/aliased loader calls.
+  const isDirectRequire = t.isIdentifier(callee) && callee.name === "require";
+  const isMemberCall =
+    t.isMemberExpression(callee) || t.isOptionalMemberExpression(callee);
+  const memberName = isMemberCall
+    ? semanticStaticPropertyKey(callee.property, callee.computed)
+    : undefined;
+  // Opaque, unrelated calls are not enough to posit a module loader.
+  // Retain indirect identifiers only when the provenance search has a
+  // plausible require source, not merely a depleted alias-selection budget.
+  const plausibleIndirectIdentifier =
+    t.isIdentifier(callee) &&
+    selectedRequireSourcesAt(callee, node, state, factoryBindingIds) !==
+      undefined;
+  // Node's CJS module.require can also be captured through a comma
+  // expression: const load = (0, module.require); load('path').
+  // The last expression matters: (module.require, () => {}) is local.
+  const capturedModuleDelegate =
+    t.isIdentifier(callee) &&
+    resolveSemanticBindingState(state, callee, callee.name)?.initializers.some(
+      ({ node: initializer }) => {
+        const expression = unwrapJavaScriptExpression(initializer).node;
+        const value = t.isSequenceExpression(expression)
+          ? expression.expressions.at(-1)
+          : expression;
+        return (
+          value !== undefined &&
+          (t.isMemberExpression(value) ||
+            t.isOptionalMemberExpression(value)) &&
+          semanticStaticPropertyKey(value.property, value.computed) ===
+            "require" &&
+          isCommonJsModuleObject(value.object, state, false)
+        );
+      },
+    ) === true;
+  // A loader may be retained in an object or array under an ordinary
+  // property name (for example, holder.load or holder[0]). Inspect provenance
+  // before excluding it; a property name by itself never proves a loader.
+  const selectedMemberLoader = isMemberCall
+    ? selectedRequireSourcesAt(callee, node, state, factoryBindingIds)
+    : undefined;
+  const plausibleCapturedMember =
+    isMemberCall &&
+    (isCommonJsRequireDelegate(callee, state, false, node) ||
+      (selectedMemberLoader !== undefined &&
+        selectedMemberLoader.loader !== "local" &&
+        selectedMemberLoader.loader !== "unknown"));
+  const possibleIndirectLoader =
+    !isDirectRequire &&
+    (plausibleIndirectIdentifier ||
+      capturedModuleDelegate ||
+      plausibleCapturedMember ||
+      (isMemberCall &&
+        (memberName === "require" ||
+          memberName === "resolve" ||
+          memberName === "call" ||
+          memberName === "apply" ||
+          memberName === "bind")));
+  // Methods unrelated to module-loading are not aliases of require just
+  // because their receiver has imprecise abstract value ownership.
+  const plausibleLoaderShape = isDirectRequire || possibleIndirectLoader;
+  // Reflect.apply can be captured under an arbitrary identifier. Admit
+  // that narrower case only if an actual argument retains the CommonJS
+  // delegate, then let the intrinsic invocation owner verify Reflect.apply.
+  // Do not widen unrelated calls when alias selection is exhausted.
+  const reflectedDelegateArgument =
+    !plausibleLoaderShape &&
+    !t.isNewExpression(node) &&
+    node.arguments.some(
+      (argument) =>
+        t.isNode(argument) &&
+        isCommonJsRequireDelegate(argument, state, false, node),
+    );
+  if (
+    (plausibleLoaderShape || reflectedDelegateArgument) &&
+    semanticModuleRequireCallAt(node, state, possibleIndirectLoader)
+  )
     return {
       operation: "load",
       loader: "unknown",
       arguments: undefined,
       sourceRelative: false,
     };
-  const callee = unwrapJavaScriptExpression(node.callee).node;
   if (
     (t.isMemberExpression(callee) || t.isOptionalMemberExpression(callee)) &&
     ["call", "apply"].includes(
@@ -806,12 +886,11 @@ export const semanticRequireCallAt = (
       );
       if (loader !== "local" && loader !== "create-require")
         return ["require-loader", loader, "relative"];
-      const selected = selectedRequireSourcesAt(
-        callee,
-        node,
-        state,
-        factoryBindingIds,
-      );
+      // Opaque ordinary methods must not become require-loader solely
+      // because a broad alias expansion reached its resource limit.
+      const selected = plausibleLoaderShape
+        ? selectedRequireSourcesAt(callee, node, state, factoryBindingIds)
+        : undefined;
       if (selected !== undefined)
         return [
           "require-loader",
@@ -1091,7 +1170,7 @@ const hasCommonJsModuleSource = (
       contexts.set(value, byMode);
     }
     const path = selections.normalize(context, next.path);
-    if (selections.limited) return true;
+    if (selections.limited) return includeUnknown;
     const pathKey = JSON.stringify(path);
     let identity = context.identities.get(pathKey);
     if (identity === undefined) {
@@ -1102,7 +1181,7 @@ const hasCommonJsModuleSource = (
         ++additionalStates > SEMANTIC_ALIAS_SELECTION_LIMIT
       ) {
         state.valueResourceLimits.add("alias-selections");
-        return true;
+        return includeUnknown;
       }
       identity = {};
       context.identities.set(pathKey, identity);
@@ -1187,7 +1266,10 @@ const hasCommonJsModuleSource = (
         value.callee,
         t.isNewExpression(value) ? undefined : value,
       );
-      if (returnedResult.unresolvedInvocation) return true;
+      // An unresolved call is uncertain, not proof that its returned object
+      // retained the host module's require delegate. Only callers that
+      // explicitly opt into unknown candidates should classify it as such.
+      if (returnedResult.unresolvedInvocation) return includeUnknown;
       enqueue(
         ...returnedResult.references.map((source) => ({
           node: source.node,
@@ -1317,7 +1399,7 @@ const hasCommonJsModuleSource = (
         next.readAt ?? value,
         next.capturedSelections,
       );
-      if (sources === undefined) return true;
+      if (sources === undefined) return includeUnknown;
       eligibility = true;
     }
     enqueue(

@@ -31,6 +31,31 @@ export function buildReport({
   const parsed = stats.parsed_javascript_files ?? null,
     parseFailures = stats.parse_failures ?? null;
   const moduleTotal = ast.modules ?? 0;
+  const linked = new Set();
+  const directDependents = new Map();
+  for (const edge of ast.edges ?? []) {
+    if (
+      edge.kind !== "internal" ||
+      typeof edge.from !== "string" ||
+      typeof edge.target !== "string"
+    )
+      continue;
+    const key = JSON.stringify([edge.from, edge.target]);
+    if (linked.has(key)) continue;
+    linked.add(key);
+    directDependents.set(
+      edge.target,
+      (directDependents.get(edge.target) ?? 0) + 1,
+    );
+  }
+  const structuralHubs = [...directDependents.entries()]
+    .map(([module, direct_dependents]) => ({ module, direct_dependents }))
+    .sort(
+      (a, b) =>
+        b.direct_dependents - a.direct_dependents ||
+        a.module.localeCompare(b.module),
+    )
+    .slice(0, 8);
   const hard = [
     !evidence.evidence_id ? "REA_EVIDENCE_ID_MISSING" : null,
     evidence.operation !== "analyze_javascript_application"
@@ -57,6 +82,9 @@ export function buildReport({
       : null,
     audit.additional_same_module_specifier_other_line > 0
       ? "REA_EXTRA_SITES_WITH_OTHER_SOURCE_LINE"
+      : null,
+    audit.ast_sites_with_literal_require_but_null_rea_specifier > 0
+      ? "REA_LITERAL_REQUIRES_WITHOUT_NORMALIZED_SPECIFIER"
       : null,
   ].filter(Boolean);
   const status = hard.length
@@ -98,6 +126,16 @@ export function buildReport({
       ast_import_sites: audit.ast_import_sites ?? null,
       matched_import_sites: audit.rea_exact_ast_site_matches ?? null,
       ast_sites_absent_from_rea: audit.ast_sites_absent_from_rea ?? null,
+      literal_require_without_structured_specifier:
+        audit.ast_sites_with_literal_require_but_null_rea_specifier ?? null,
+      no_literal_rea_candidate:
+        audit.ast_sites_without_even_literal_rea_candidate ?? null,
+      additional_rea_unreconciled:
+        audit.rea_additional_sites_unreconciled_with_ast ?? null,
+      method_calls_misclassified_as_imports:
+        audit.rea_nonrequire_calls_tagged_as_imports ?? null,
+      dynamic_require_without_literal_specifier:
+        audit.rea_dynamic_require_candidates_without_literal_specifier ?? null,
       extra_rea_sites: audit.rea_additional_sites ?? null,
       extra_without_specifier:
         audit.additional_without_explicit_specifier ?? null,
@@ -110,6 +148,7 @@ export function buildReport({
     },
     hard_failures: hard,
     remaining_uncertainties: partial,
+    structural_hubs: structuralHubs,
     interpretation:
       "Static JavaScript module map only. No automatic claim of end-to-end app behavior or business-rule correctness.",
   };
@@ -143,14 +182,29 @@ export function buildReport({
     "| Importações de código identificadas pelo AST | " +
       asInt(audit.ast_import_sites) +
       " |",
-    "| Importações AST reconciliadas com REA | " +
+    "| Importações AST confirmadas por specifier estruturado REA | " +
       asInt(audit.rea_exact_ast_site_matches) +
       " |",
-    "| Importações AST não reconhecidas pela REA | " +
+    "| Importações AST com require literal na REA, mas sem specifier estruturado | " +
+      asInt(audit.ast_sites_with_literal_require_but_null_rea_specifier) +
+      " |",
+    "| Importações AST sem sequer candidato require literal na REA | " +
+      asInt(audit.ast_sites_without_even_literal_rea_candidate) +
+      " |",
+    "| Importações AST ainda sem correspondência estrita REA | " +
       asInt(audit.ast_sites_absent_from_rea) +
       " |",
     "| Candidatos adicionais REA sem validação de importação única | " +
       asInt(audit.rea_additional_sites) +
+      " |",
+    "| Candidatos adicionais REA não reconciliados com o AST | " +
+      asInt(audit.rea_additional_sites_unreconciled_with_ast) +
+      " |",
+    "| Chamadas comuns de métodos/funções rotuladas como importações pela REA | " +
+      asInt(audit.rea_nonrequire_calls_tagged_as_imports) +
+      " |",
+    "| Candidatos require() com argumento dinâmico | " +
+      asInt(audit.rea_dynamic_require_candidates_without_literal_specifier) +
       " |",
     "| Incógnitas da REA no grafo semântico | " +
       asInt(report.checks.rea_semantic_unknowns) +
@@ -176,6 +230,8 @@ export function buildReport({
     "",
     "- Os números refletem os arquivos e as importações identificados em leitura estática, sem interpretações inventadas por modelo de IA.",
     "- A comparação por localização confronta a REA com um parser independente. Importações repetidas não são contadas como dependências distintas.",
+    "- Quando a REA mostra uma expressão require() literal mas deixa o campo specifier vazio, registramos a observação separadamente, sem contá-la como correspondência estrita.",
+    "- Chamadas sem sintaxe require() indevidamente rotuladas como importações são separadas de requerimentos dinâmicos. Isto indica possível defeito no extrator da REA, não confirmação de execução.",
     "- " +
       (trueRuntime
         ? "No preset Axios, 12 verificações de três funções puras observaram resultados reais, sem requisições HTTP."
@@ -194,6 +250,31 @@ export function buildReport({
     "- A REA pode conter interpretações e classificações ainda incertas; não use o relatório como aprovação automática de engenharia.",
     "",
   ];
+  const archIndex = lines.indexOf("## O que é possível concluir");
+  if (archIndex < 0) throw new Error("Report section missing");
+  lines.splice(
+    archIndex,
+    0,
+    "## Mapa de dependências internas (AST)",
+    "",
+    "Os módulos abaixo são os mais importados diretamente por **outros módulos distintos** dentro do escopo. Isso não demonstra execução, confiabilidade ou importância funcional.",
+    "",
+    "| Arquivo | Outros módulos que o referenciam |",
+    "| --- | ---: |",
+    ...(structuralHubs.length
+      ? structuralHubs.map(
+          (hub) =>
+            "| " +
+            tick +
+            safe(hub.module) +
+            tick +
+            " | " +
+            hub.direct_dependents +
+            " |",
+        )
+      : ["| Sem relações internas estáticas comprovadas | 0 |"]),
+    "",
+  );
   return { report, markdown: lines.join("\n") };
 }
 if (
@@ -229,6 +310,10 @@ if (
   console.log("REA_TOOLKIT_SOURCE_MODULES=" + report.checks.ast_js_files);
   console.log("REA_TOOLKIT_EVIDENCE_ID=" + report.checks.rea_evidence_id);
   console.log("REA_TOOLKIT_REPORT_PRODUCED=true");
+  if (report.status === "INCONCLUSIVO")
+    console.log(
+      "::warning title=REA Toolkit inconclusivo::O relatorio foi entregue, mas a aprovacao tecnica e falsa. Consulte o Summary e o JSON.",
+    );
   console.log(
     "REA_TOOLKIT_TECHNICAL_APPROVAL=" +
       String(report.hard_failures.length === 0),
