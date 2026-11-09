@@ -550,10 +550,18 @@ class ProtocolProducerTest(unittest.TestCase):
         self.server = bridge._BridgeServer(self.dispatcher)
         bridge.SOCKET_TIMEOUT_SECONDS = 0.1
         self.server.start()
-        deadline = time.monotonic() + 2
+        # On saturated CI hosts, the Python listener thread may not publish
+        # its descriptor within two seconds. Still require actual publication;
+        # never treat a live thread or elapsed time as successful startup.
+        deadline = time.monotonic() + 10
         while not self.server.descriptor.exists() and time.monotonic() < deadline:
-            time.sleep(0.005)
-        self.assertTrue(self.server.descriptor.exists())
+            if not self.server.is_alive():
+                break
+            time.sleep(0.01)
+        self.assertTrue(
+            self.server.descriptor.exists(),
+            "Cutter bridge did not publish its session descriptor",
+        )
 
     def tearDown(self):
         self.server.stop()
