@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "request_id": "nexus-rea-048-axios-20261109",
-  "target": "axios",
+  "request_id": "nexus-rea-048-nodered-20261109",
+  "target": "nodered",
   "repository": "",
   "commit": "",
   "directory": "",
-  "purpose": "Read-only supervised Nexus integration proof using pinned public Axios preset"
+  "purpose": "Second ChatGPT-to-GitHub-to-REA proof on pinned public Node-RED source"
 }
