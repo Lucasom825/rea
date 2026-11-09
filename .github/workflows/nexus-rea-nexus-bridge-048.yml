@@ -47,7 +47,7 @@ jobs:
           git merge-base --is-ancestor "$BASE_MAIN_SHA" HEAD
           while IFS= read -r changed; do
             case "$changed" in
-              nexus-pilot/requests/active.json|.github/workflows/nexus-rea-nexus-bridge-048.yml) ;;
+              nexus-pilot/requests/active.json|.github/workflows/nexus-rea-nexus-bridge-048.yml|nexus-pilot/bridge/OPERACAO-REA-048.md) ;;
               *) echo "UNREVIEWED_EXECUTABLE_CHANGE: $changed" >&2; exit 1 ;;
             esac
           done < <(git diff --name-only "$BASE_MAIN_SHA" HEAD)
