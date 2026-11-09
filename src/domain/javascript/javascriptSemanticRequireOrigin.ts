@@ -1399,7 +1399,7 @@ const hasCommonJsModuleSource = (
         next.readAt ?? value,
         next.capturedSelections,
       );
-      if (sources === undefined) return true;
+      if (sources === undefined) return includeUnknown;
       eligibility = true;
     }
     enqueue(
