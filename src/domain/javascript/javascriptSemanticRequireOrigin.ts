@@ -776,10 +776,22 @@ export const semanticRequireCallAt = (
   // Methods unrelated to module-loading are not aliases of require just
   // because their receiver has imprecise abstract value ownership.
   const plausibleLoaderShape = isDirectRequire || possibleIndirectLoader;
-  // A captured Reflect.apply alias can invoke a real CommonJS delegate even
-  // when the callee name has no loader shape. Preserve proven invocation
-  // identity, while denying budget-exhaustion fallbacks to ordinary calls.
-  if (semanticModuleRequireCallAt(node, state, possibleIndirectLoader))
+  // Reflect.apply can be captured under an arbitrary identifier. Admit
+  // that narrower case only if an actual argument retains the CommonJS
+  // delegate, then let the intrinsic invocation owner verify Reflect.apply.
+  // Do not widen unrelated calls when alias selection is exhausted.
+  const reflectedDelegateArgument =
+    !plausibleLoaderShape &&
+    !t.isNewExpression(node) &&
+    node.arguments.some(
+      (argument) =>
+        t.isNode(argument) &&
+        isCommonJsRequireDelegate(argument, state, false, node),
+    );
+  if (
+    (plausibleLoaderShape || reflectedDelegateArgument) &&
+    semanticModuleRequireCallAt(node, state, possibleIndirectLoader)
+  )
     return {
       operation: "load",
       loader: "unknown",
