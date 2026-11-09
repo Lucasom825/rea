@@ -751,10 +751,23 @@ export const semanticRequireCallAt = (
         );
       },
     ) === true;
+  // A loader may be retained in an object or array under an ordinary
+  // property name (for example, holder.load or holder[0]). Inspect provenance
+  // before excluding it; a property name by itself never proves a loader.
+  const selectedMemberLoader = isMemberCall
+    ? selectedRequireSourcesAt(callee, node, state, factoryBindingIds)
+    : undefined;
+  const plausibleCapturedMember =
+    isMemberCall &&
+    (isCommonJsRequireDelegate(callee, state, false, node) ||
+      (selectedMemberLoader !== undefined &&
+        selectedMemberLoader.loader !== "local" &&
+        selectedMemberLoader.loader !== "unknown"));
   const possibleIndirectLoader =
     !isDirectRequire &&
     (plausibleIndirectIdentifier ||
       capturedModuleDelegate ||
+      plausibleCapturedMember ||
       (isMemberCall &&
         (memberName === "require" ||
           memberName === "resolve" ||
@@ -764,8 +777,20 @@ export const semanticRequireCallAt = (
   // Methods unrelated to module-loading are not aliases of require just
   // because their receiver has imprecise abstract value ownership.
   const plausibleLoaderShape = isDirectRequire || possibleIndirectLoader;
+  // Reflect.apply can be captured under an arbitrary identifier. Admit
+  // that narrower case only if an actual argument retains the CommonJS
+  // delegate, then let the intrinsic invocation owner verify Reflect.apply.
+  // Do not widen unrelated calls when alias selection is exhausted.
+  const reflectedDelegateArgument =
+    !plausibleLoaderShape &&
+    !t.isNewExpression(node) &&
+    node.arguments.some(
+      (argument) =>
+        t.isNode(argument) &&
+        isCommonJsRequireDelegate(argument, state, false, node),
+    );
   if (
-    plausibleLoaderShape &&
+    (plausibleLoaderShape || reflectedDelegateArgument) &&
     semanticModuleRequireCallAt(node, state, possibleIndirectLoader)
   )
     return {
@@ -1241,7 +1266,10 @@ const hasCommonJsModuleSource = (
         value.callee,
         t.isNewExpression(value) ? undefined : value,
       );
-      if (returnedResult.unresolvedInvocation) return true;
+      // An unresolved call is uncertain, not proof that its returned object
+      // retained the host module's require delegate. Only callers that
+      // explicitly opt into unknown candidates should classify it as such.
+      if (returnedResult.unresolvedInvocation) return includeUnknown;
       enqueue(
         ...returnedResult.references.map((source) => ({
           node: source.node,
@@ -1371,7 +1399,7 @@ const hasCommonJsModuleSource = (
         next.readAt ?? value,
         next.capturedSelections,
       );
-      if (sources === undefined) return true;
+      if (sources === undefined) return includeUnknown;
       eligibility = true;
     }
     enqueue(
