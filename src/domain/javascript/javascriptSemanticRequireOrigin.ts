@@ -717,8 +717,7 @@ export const semanticRequireCallAt = (
   // module.require delegate" search can otherwise turn *all* direct require
   // sites into unknown loaders, even when their literal is available.
   // Keep the conservative unknown path for indirect/aliased loader calls.
-  const isDirectRequire =
-    t.isIdentifier(callee) && callee.name === "require";
+  const isDirectRequire = t.isIdentifier(callee) && callee.name === "require";
   const isMemberCall =
     t.isMemberExpression(callee) || t.isOptionalMemberExpression(callee);
   const memberName = isMemberCall

@@ -100,6 +100,7 @@ importação que dependem de evidência incerta, explicitamente como
 O motor compilado e o auditor AST independente não executam o código-alvo.
 
 Prova da nova revisão:
+
 - [417 testes de aceitação/regressão CLI/MCP e 145 testes focados, Node-RED com 47 arquivos e relatório emitido](https://github.com/Lucasom825/rea/actions/runs/42535904524): SUCCESS.
 - **Node-RED: AST verificou 177 locais sintáticos; REA confirmou estritamente
   153; outros 24 têm expressão literal, mas `properties.specifier=null`.
