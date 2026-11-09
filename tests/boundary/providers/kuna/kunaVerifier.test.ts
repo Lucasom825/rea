@@ -90,7 +90,9 @@ it("accepts requested functions distributed across caller targets", async () => 
     ],
     {
       encoding: "utf8",
-      timeout: 10_000,
+      // Six CI shards compete for CPU. Keep a bounded failure-path test,
+      // but allow the verifier's startup/symbol scan to finish under load.
+      timeout: 30_000,
       env: {
         PATH: process.env.PATH,
         HOME: root,
@@ -107,7 +109,7 @@ it("accepts requested functions distributed across caller targets", async () => 
     cleanup: "complete",
     caller_target_selection: expectedCallerSelection(targets),
   });
-});
+}, 45_000);
 
 test.skipIf(
   process.platform === "win32" || process.env.REA_KUNA_COMMAND === undefined,
