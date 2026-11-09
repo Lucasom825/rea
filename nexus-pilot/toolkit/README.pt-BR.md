@@ -115,6 +115,33 @@ reconstrutor automático de aplicações**. A publicação em main exige CI
 completa bem-sucedida e revisão humana; a qualidade semântica geral
 permanece não homologada.
 
+## Revisão candidata atual — require direto com preservação CLI/MCP
+
+O experimento de classificação mais restritiva acima foi descartado por
+regressões. Esta revisão seguinte tem duas garantias independentes verificadas:
+
+- [Node-RED — 177/177 importações literais por arquivo/linha/especificador](https://github.com/Lucasom825/rea/actions/runs/42537154398):
+  47 arquivos JavaScript, **145 testes direcionados** e **132 testes nas
+  quatro suítes CLI/MCP** aprovados. Ainda contém **24 ocorrências extras
+  não comprovadas** (20 chamadas comuns e quatro imports dinâmicos).
+- [Axios — 199/199 importações literais e 12 testes comportamentais controlados](https://github.com/Lucasom825/rea/actions/runs/42537386474):
+  72 arquivos JS, **31 ocorrências adicionais** com ressalvas
+  (24 chamadas comuns e sete ocorrências do mesmo especificador em linhas
+  diferentes). O resultado técnico nos dois pilotos foi
+  `COBERTURA_ESTRUTURAL_COM_RESSALVAS`, não precisão semântica universal.
+
+Os candidatos de carregamento indireto continuam no grafo como evidências
+**não confirmadas** e de baixa confiança. O relatório distingue a cobertura
+estrita, a incerteza e as relações extras; não executa código do Node-RED.
+
+**Publicação na `main` pendente:** a tentativa de CI completa
+[42537577729](https://github.com/Lucasom825/rea/actions/runs/42537577729)
+encontrou duas referências inválidas a `inputs.remote_cache_write` no
+workflow manual. Esse bloco de cache remoto foi removido, sem adicionar
+dependência paga. Só será integrada a revisão cujo próprio SHA tiver
+**CI completa aprovada**. O workflow na `main` continua usando o motor antigo
+até o merge. Nenhum pacote npm foi publicado.
+
 ## Próximos limites
 
 A REA fica disponível como **analista estático de código público**.
