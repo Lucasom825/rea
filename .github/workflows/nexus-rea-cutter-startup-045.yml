@@ -1,0 +1,30 @@
+name: REA Cutter bridge startup regression 045
+on:
+  push:
+    branches:
+      - nexus/rea-cutter-startup-045-20261109
+permissions:
+  contents: read
+jobs:
+  cutter-producer:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      HUSKY: '0'
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5 Node24
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5 Node24
+        with:
+          node-version-file: .nvmrc
+      - name: Repeat Python producer protocol tests with verified readiness
+        run: |
+          for attempt in 1 2 3 4 5; do
+            echo "Cutter protocol attempt $attempt"
+            python3 tests/fixtures/cutter_bridge_protocol_test.py
+          done
+      - run: npm ci --no-audit --no-fund
+      - run: npm run test:prepare
+      - name: Verify full TypeScript/Python Cutter protocol boundary
+        run: npx vitest run --project boundary tests/boundary/providers/cutterBridgeProducer.test.ts --reporter=verbose
+      - name: Check Python source compile
+        run: python3 -m py_compile tests/fixtures/cutter_bridge_protocol_test.py
