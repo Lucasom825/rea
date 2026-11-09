@@ -1,0 +1,27 @@
+name: REA CLI heap regression 036
+on:
+  push:
+    branches:
+      - nexus/rea-memory-ci-036-20261109
+permissions:
+  contents: read
+jobs:
+  cli-heap-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      HUSKY: '0'
+      TURBO_TOKEN: "${{ (github.event_name == 'workflow_call' || (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'))) && secrets.TURBO_TOKEN || '' }}"
+      TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+      TURBO_CACHE: "${{ (github.event_name == 'workflow_call' || (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'))) && 'local:rw,remote:rw' || 'local:rw,remote:r' }}"
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5, Node 24
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5, Node 24
+        with:
+          node-version-file: .nvmrc
+      - run: npm ci --no-audit --no-fund
+      - run: npm run test:prepare
+      - name: Reproduce CLI worker memory-sensitive tests
+        run: npx vitest run --project cli-boundary tests/boundary/cli/managedMemberListOrdering.test.ts --reporter=verbose
+      - name: Verify config style
+        run: npx oxfmt --check vitest.config.ts
