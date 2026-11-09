@@ -48,3 +48,23 @@ Para o preset `public`, informar repositório GitHub público `dono/repositorio`
 - Custos/cotas de GitHub Actions dependem da conta e não foram auditados; não afirmar custo monetário universal zero.
 - O sistema está pronto para **piloto supervisionado em ChatGPT com conector GitHub**, não para disponibilidade permanente, MCP REA instalado ou operação produtiva.
 - Para declarar o piloto plenamente operacional, confirmar solicitação por ChatGPT, workflow correspondente, log com relatório real, inspeção do conteúdo, status de artefato e separação entre evidência, hipótese e conclusão.
+
+
+## Próxima fase 049 — Construção e adaptação supervisionadas
+
+**Objetivo aprovado pelo usuário em 09/11/2026:** quando solicitado, o Nexus não deve apenas apresentar o relatório de engenharia de software da REA. Deve usar a evidência para (a) criar um sistema novo, quando adequado, ou (b) implementar melhorias em sistemas existentes autorizados. Esta é uma **meta operacional**, não uma funcionalidade implementada automaticamente nem uma autorização para mudanças produtivas.
+
+**Fluxo por solicitação e sem implantação automática:**
+
+1. **Pedido e escopo:** identificar o projeto externo público analisado, a funcionalidade desejada, o destino da melhoria e critérios objetivos de aceite. Se a pessoa não indicar o aplicativo de destino, apresentar alternativas antes de qualquer alteração.
+2. **Elegibilidade e licença:** confirmar texto da licença, obrigações de atribuição/copyleft e titularidade; distinguir código reutilizável de comportamento que pode ser implementado independentemente. Repositório público sem licença não autoriza copiar ou distribuir código. Não contornar controles técnicos ou licenças comerciais.
+3. **Duas fontes de verdade:** (i) REA analisa SOMENTE código público, em commit imutável; seu mapa é estrutural e não demonstra funcionamento. (ii) GitHub/conector autorizado lê o repositório de destino e seus requisitos, testes, interface, banco, integrações e restrições. NUNCA subir arquivos privados do destino ao workflow público do REA.
+4. **Diagnóstico de adequação:** estabelecer o que já existe no destino, o que será aproveitado de terceiro (se licenciado), o que será reimplementado e o que não pode ser comprovado. Elaborar plano incremental, testes de regressão e migração/rollback quando houver banco de dados.
+5. **Implementação:** criar branch isolada no repositório de destino autorizado; editar código, dependências e testes; apresentar diff, requisitos atendidos, limites e custos previsíveis. Reutilizar módulos próprios e evitar duplicar um aplicativo já existente.
+6. **Validação:** executar CI disponível, verificar builds e testes relevantes; quando possível, validar comportamento com dados de teste não sensíveis. Não concluir por mero sucesso de CI se falta prova funcional. Abrir PR para revisão.
+7. **Entrega e autorização:** PR/preview e instruções de teste; merge, deploy, migração de banco, despesas e mudanças em produção SOMENTE com autorização específica do usuário e verificações atualizadas. Não dizer "pronto para usar" sem prova no ambiente apropriado.
+8. **Memória e aprendizado:** registrar fontes, revisão SHA, versão inicial/final, hipóteses, defeitos, testes, limitações e decisões confirmadas no Memória Viva; não gravar tokens, dados privados completos ou conteúdo sensível.
+
+**Critério inicial de sucesso da Fase 049:** um caso real pequeno de recurso permitido por licença, incorporado em uma branch de teste do sistema de destino, com código existente preservado, teste de regressão e demonstração do comportamento solicitado. Somente após esse marco poderemos dizer que a função **analisar → implementar → testar** foi provada; a integração automática do gerador ao REA permanece NÃO VALIDADA até então.
+
+**Capacidades atuais comprovadas:** GitHub conectado permite criar branches, editar/criar arquivos, abrir PR e inspecionar CI; a REA via GitHub fornece análise de fontes públicas e relatório, com ressalvas. O modelo de IA coordena sob demanda no ChatGPT; não há agente gerador 24/7. Ferramentas de publicação podem ter custos e permissões não auditadas.
