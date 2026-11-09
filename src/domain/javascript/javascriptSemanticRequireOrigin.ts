@@ -759,9 +759,10 @@ export const semanticRequireCallAt = (
     : undefined;
   const plausibleCapturedMember =
     isMemberCall &&
-    selectedMemberLoader !== undefined &&
-    selectedMemberLoader.loader !== "local" &&
-    selectedMemberLoader.loader !== "unknown";
+    (isCommonJsRequireDelegate(callee, state, false, node) ||
+      (selectedMemberLoader !== undefined &&
+        selectedMemberLoader.loader !== "local" &&
+        selectedMemberLoader.loader !== "unknown"));
   const possibleIndirectLoader =
     !isDirectRequire &&
     (plausibleIndirectIdentifier ||
@@ -1265,7 +1266,10 @@ const hasCommonJsModuleSource = (
         value.callee,
         t.isNewExpression(value) ? undefined : value,
       );
-      if (returnedResult.unresolvedInvocation) return true;
+      // An unresolved call is uncertain, not proof that its returned object
+      // retained the host module's require delegate. Only callers that
+      // explicitly opt into unknown candidates should classify it as such.
+      if (returnedResult.unresolvedInvocation) return includeUnknown;
       enqueue(
         ...returnedResult.references.map((source) => ({
           node: source.node,
