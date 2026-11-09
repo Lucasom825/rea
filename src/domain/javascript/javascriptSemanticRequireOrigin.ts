@@ -860,12 +860,11 @@ export const semanticRequireCallAt = (
       );
       if (loader !== "local" && loader !== "create-require")
         return ["require-loader", loader, "relative"];
-      const selected = selectedRequireSourcesAt(
-        callee,
-        node,
-        state,
-        factoryBindingIds,
-      );
+      // Opaque ordinary methods must not become require-loader solely
+      // because a broad alias expansion reached its resource limit.
+      const selected = plausibleLoaderShape
+        ? selectedRequireSourcesAt(callee, node, state, factoryBindingIds)
+        : undefined;
       if (selected !== undefined)
         return [
           "require-loader",
