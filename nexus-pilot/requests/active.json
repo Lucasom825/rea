@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "request_id": "nexus-rea-048-nodered-20261109",
-  "target": "nodered",
-  "repository": "",
-  "commit": "",
-  "directory": "",
-  "purpose": "Second ChatGPT-to-GitHub-to-REA proof on pinned public Node-RED source"
+  "request_id": "nexus-rea-049-drawflow-20261110",
+  "target": "public",
+  "repository": "jerosoler/Drawflow",
+  "commit": "ef8a88cdfbf2010cc0b641b94278be6db413938b",
+  "directory": "src",
+  "purpose": "Auditoria publica Drawflow MIT para testar construcao de modulo de fluxo Nexus"
 }
