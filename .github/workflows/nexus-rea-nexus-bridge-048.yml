@@ -9,6 +9,12 @@ on:
     paths:
       - nexus-pilot/requests/active.json
       - .github/workflows/nexus-rea-nexus-bridge-048.yml
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - nexus/rea-nexus-bridge-048-20261109
+    paths:
+      - nexus-pilot/requests/active.json
 
 permissions:
   contents: read
