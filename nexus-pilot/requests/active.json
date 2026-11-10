@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "request_id": "nexus-rea-049-drawflow-ref-push-20261110",
+  "request_id": "nexus-rea-drawflow-pr-052-20261110",
   "target": "public",
   "repository": "jerosoler/Drawflow",
   "commit": "ef8a88cdfbf2010cc0b641b94278be6db413938b",
   "directory": "src",
-  "purpose": "Drawflow MIT public source-only audit; trigger diagnostic via Git refs"
+  "purpose": "Public MIT Drawflow pinned 40-char SHA, supervised pull request REA audit"
 }
