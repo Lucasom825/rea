@@ -20,7 +20,7 @@ function fixture(){
     },remaining_uncertainties:["UNKNOWN_IMPORTS"],structural_hubs:[{module:"utils.js",direct_dependents:30}]
   };
 }
-function run(input:unknown,overrides:Record<string,string>={}){
+function run(input,overrides={}){
  const cwd=mkdtempSync(join(tmpdir(),"nexus070-"));
  const report=join(cwd,"private-raw-report.json");
  writeFileSync(report,JSON.stringify(input));
