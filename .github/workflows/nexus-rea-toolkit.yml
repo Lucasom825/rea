@@ -34,6 +34,12 @@ jobs:
   verified-static-analysis:
     runs-on: ubuntu-24.04
     timeout-minutes: 35
+    outputs:
+      artifact_id: ${{ steps.uploaded.outputs.artifact-id }}
+      target_repo: ${{ steps.target.outputs.repository }}
+      target_sha: ${{ steps.target.outputs.sha }}
+      target_scope: ${{ steps.target.outputs.scope }}
+      target_preset: ${{ steps.target.outputs.preset }}
     env:
       npm_config_audit: "false"
       npm_config_fund: "false"
@@ -203,6 +209,7 @@ jobs:
           if [ "${audit_exit:-0}" -gt 2 ]; then exit "$audit_exit"; fi
           node make-report.mjs "$TARGET_FILE" "$RUNNER_TEMP/rea-results/source_graph.json" "$RUNNER_TEMP/rea-results/REA_Evidence.json" "$RUNNER_TEMP/rea-results/import_audit.json" "$RUNNER_TEMP/rea-results"
       - name: Retain reproducible results and raw REA Evidence (public source only)
+        id: uploaded
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -210,3 +217,42 @@ jobs:
           path: ${{ runner.temp }}/rea-results/
           if-no-files-found: warn
           retention-days: 3
+
+  publish-evidence-summary:
+    name: Public static-analysis result, per run
+    needs: verified-static-analysis
+    if: success() && github.event_name == 'workflow_dispatch' && inputs.target == 'public' && github.ref == 'refs/heads/nexus/rea-public-jobs-070-20261111'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout only the experimental REA branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: nexus/rea-public-jobs-070-20261111
+          fetch-depth: 1
+          persist-credentials: true
+      - name: Download previous job artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: rea-toolkit-public-analysis
+          path: ${{ runner.temp }}/rea070-evidence
+      - name: Validate source identity and write bounded JSON
+        shell: bash
+        env:
+          REA_PUBLIC_REPOSITORY: ${{ needs.verified-static-analysis.outputs.target_repo }}
+          REA_PUBLIC_SHA: ${{ needs.verified-static-analysis.outputs.target_sha }}
+          REA_PUBLIC_DIRECTORY: ${{ needs.verified-static-analysis.outputs.target_scope }}
+          REA_PUBLIC_RUN_ID: ${{ github.run_id }}
+          REA_PUBLIC_ARTIFACT_ID: ${{ needs.verified-static-analysis.outputs.artifact_id }}
+          REA_PUBLIC_REPORT_PATH: ${{ runner.temp }}/rea070-evidence/report.json
+        run: |
+          set -euo pipefail
+          node nexus-pilot/toolkit/publish-run-summary-070.mjs
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- nexus-pilot/public-reports/by-run/
+          git diff --cached --quiet && exit 0
+          git commit -m 'docs(rea070): verified public analysis summary [skip ci]'
+          git push origin HEAD:refs/heads/nexus/rea-public-jobs-070-20261111
