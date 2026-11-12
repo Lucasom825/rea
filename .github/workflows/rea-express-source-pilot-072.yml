@@ -9,7 +9,8 @@ jobs:
   dispatch-express:
     # This is a one-shot fixture; future pushes to this branch cannot
     # repeatedly schedule the test, and repository code is never executed.
-    if: github.repository == 'Lucasom825/rea' && github.event.head_commit.message == 'test(rea072): one-time pinned Express pilot'
+    if: >-
+      github.repository == 'Lucasom825/rea' && github.event.head_commit.message == 'test(rea072): fix YAML and run one-time pinned Express pilot'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
