@@ -1,0 +1,60 @@
+{
+  "schema": "NEXUS_REA_PUBLIC_SUMMARY_V1",
+  "source": "Lucasom825/rea",
+  "run_id": 43274412800,
+  "artifact_id": 13970500205,
+  "run_url": "https://github.com/Lucasom825/rea/actions/runs/43274412800",
+  "target": {
+    "repository": "expressjs/express",
+    "commit": "43fca52d28a422c8be48fd489cbd4f2d6152bab6",
+    "directory": "lib"
+  },
+  "status": "COBERTURA_ESTRUTURAL_COM_RESSALVAS",
+  "created_at": "2026-11-12T17:55:59.163Z",
+  "evidence_id": "ev_6b4aa2b4935761c58423693a1a14ff55b53adb2ba4b050ef88c63ad9f21bb569",
+  "report_sha256": "cdf4355e75efd62670d8bbeabbd0264dd2f2d3e74e3aa44d69ff416b8ec20ad9",
+  "checks": {
+    "ast_js_files": 6,
+    "rea_parsed_js": 6,
+    "rea_parse_failures": 0,
+    "ast_import_sites": 57,
+    "matched_import_sites": 57,
+    "ast_unique_internal_import_pairs": 6,
+    "additional_rea_unreconciled": 5,
+    "rea_semantic_unknowns": 2518,
+    "source_executed": false,
+    "behavior_test_verified": false
+  },
+  "uncertainties": [
+    "NONLITERAL_DYNAMIC_IMPORTS_NOT_RESOLVED",
+    "REA_IMPORT_CANDIDATES_WITHOUT_SPECIFIER",
+    "REA_EXTRA_SITES_WITH_OTHER_SOURCE_LINE"
+  ],
+  "structural_hubs": [
+    {
+      "module": "utils.js",
+      "direct_dependents": 2
+    },
+    {
+      "module": "application.js",
+      "direct_dependents": 1
+    },
+    {
+      "module": "request.js",
+      "direct_dependents": 1
+    },
+    {
+      "module": "response.js",
+      "direct_dependents": 1
+    },
+    {
+      "module": "view.js",
+      "direct_dependents": 1
+    }
+  ],
+  "limitations": [
+    "Código público analisado somente estaticamente; comportamento não comprovado.",
+    "Nenhum aplicativo externo foi executado, instalado ou reconstruído.",
+    "A conformidade de licença e segurança exige revisão humana."
+  ]
+}

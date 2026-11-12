@@ -1,0 +1,36 @@
+name: REA 070 - safe per-run public summary publisher tests
+on:
+  push:
+    branches: [nexus/rea-public-jobs-070-20261111]
+    paths:
+      - nexus-pilot/toolkit/publish-run-summary-070.mjs
+      - nexus-pilot/toolkit/test-publish-run-070.mjs
+      - .github/workflows/nexus-rea-toolkit.yml
+      - .github/workflows/nexus-070-publisher-tests.yml
+permissions:
+  contents: read
+jobs:
+  fixtures-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout feature branch without write credentials
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '22.16.0'
+      - name: Validate public summary publisher with synthetic input only
+        run: node --test nexus-pilot/toolkit/test-publish-run-070.mjs
+      - name: Confirm general workflow retains dispatch and never runs unknown target code
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'workflow_dispatch:' .github/workflows/nexus-rea-toolkit.yml
+          grep -Fq 'source-only' .github/workflows/nexus-rea-toolkit.yml
+          grep -Fq 'contents: read' .github/workflows/nexus-rea-toolkit.yml
+          grep -Fq 'permissions:' .github/workflows/nexus-rea-toolkit.yml
+          grep -Fq 'publish-evidence-summary:' .github/workflows/nexus-rea-toolkit.yml
+          echo 'NEXUS070_REA_ISOLATED_PUBLISHER_TESTS_OK=true'
