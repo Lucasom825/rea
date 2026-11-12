@@ -1,0 +1,70 @@
+{
+  "schema": "NEXUS_REA_PUBLIC_SUMMARY_V1",
+  "source": "Lucasom825/rea",
+  "run_id": 43270659086,
+  "artifact_id": 13968536551,
+  "run_url": "https://github.com/Lucasom825/rea/actions/runs/43270659086",
+  "target": {
+    "repository": "axios/axios",
+    "commit": "4ee8d46fc463770b8f5da718d5449a5b027b2c08",
+    "directory": "lib"
+  },
+  "status": "COBERTURA_ESTRUTURAL_COM_RESSALVAS",
+  "created_at": "2026-11-12T17:34:27.760Z",
+  "evidence_id": "ev_bb6dd858d177d41f15fa073ab6dfcba1e23afe52d34d7b51da23ae95b8136500",
+  "report_sha256": "9b7b1ec02d9024dfe8e190647991c26c9a5a67bb76556ad8b60ccccddab37d80",
+  "checks": {
+    "ast_js_files": 72,
+    "rea_parsed_js": 72,
+    "rea_parse_failures": 0,
+    "ast_import_sites": 200,
+    "matched_import_sites": 200,
+    "ast_unique_internal_import_pairs": 178,
+    "additional_rea_unreconciled": 7,
+    "rea_semantic_unknowns": 13641,
+    "source_executed": false,
+    "behavior_test_verified": false
+  },
+  "uncertainties": [
+    "REA_EXTRA_SITES_WITH_OTHER_SOURCE_LINE"
+  ],
+  "structural_hubs": [
+    {
+      "module": "utils.js",
+      "direct_dependents": 30
+    },
+    {
+      "module": "core/AxiosError.js",
+      "direct_dependents": 19
+    },
+    {
+      "module": "platform/index.js",
+      "direct_dependents": 11
+    },
+    {
+      "module": "core/AxiosHeaders.js",
+      "direct_dependents": 10
+    },
+    {
+      "module": "cancel/CanceledError.js",
+      "direct_dependents": 6
+    },
+    {
+      "module": "helpers/toFormData.js",
+      "direct_dependents": 5
+    },
+    {
+      "module": "defaults/transitional.js",
+      "direct_dependents": 4
+    },
+    {
+      "module": "env/data.js",
+      "direct_dependents": 4
+    }
+  ],
+  "limitations": [
+    "Código público analisado somente estaticamente; comportamento não comprovado.",
+    "Nenhum aplicativo externo foi executado, instalado ou reconstruído.",
+    "A conformidade de licença e segurança exige revisão humana."
+  ]
+}
